@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for mcp-jail
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
