@@ -28,4 +28,5 @@ func init() {
 	rootCmd.AddCommand(wrapCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(statsCmd)
+	rootCmd.AddCommand(serveCmd)
 }

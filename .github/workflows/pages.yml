@@ -1,0 +1,87 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/pages.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v1.0.0)'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v1.0.0)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target version
+        id: resolve-version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          TARGET_VERSION="${INPUT_VERSION}"
+          if [ -z "$TARGET_VERSION" ]; then
+            TARGET_VERSION=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          fi
+          if [ -z "$TARGET_VERSION" ]; then
+            TARGET_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+          fi
+          echo "version=${TARGET_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Target docs version: ${TARGET_VERSION}"
+
+      - name: Update documentation versions
+        run: |
+          bash scripts/update-docs-version.sh "${{ steps.resolve-version.outputs.version }}" docs
+
+      - name: Commit updated documentation (if changed)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain docs/)" ]; then
+            git add docs/
+            git commit -m "docs: sync release version to ${{ steps.resolve-version.outputs.version }} [skip ci]" || true
+            git push origin main || true
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Setup Documentation with md-web-renderer
+        uses: smford/md-web-renderer@29586695f62fb154bfd9543ce6db38946a6b614a # v1
+        with:
+          path: 'docs'
+          fallback-readme: 'false'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
