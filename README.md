@@ -1,13 +1,15 @@
 # mcp-jail
 
 [![Go Version](https://img.shields.io/badge/go-1.23%2B-blue.svg)](https://golang.org)
-[![Zero CGO](https://img.shields.io/badge/CGO-disabled-success.svg)](https://golang.org)
+[![Pure Go](https://img.shields.io/badge/pure--Go-standalone_binary-success.svg)](https://golang.org)
 [![Documentation](https://img.shields.io/badge/docs-GitHub_Pages-blue.svg)](https://smford.github.io/mcp-jail/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`mcp-jail` is a high-performance, zero-CGO local firewall and flight-recorder proxy for the **Model Context Protocol (MCP)**. It sits transparently between your AI host agent (Claude Code, Antigravity, Cursor, Claude Desktop) and target MCP servers running locally.
+`mcp-jail` is a lightweight security proxy and flight recorder for the **Model Context Protocol (MCP)**. It acts as a safety guard between your AI coding agents (such as Claude Code, Cursor, Antigravity, and Claude Desktop) and the MCP servers running on your machine.
 
-Interactive online documentation is available at [https://smford.github.io/mcp-jail/](https://smford.github.io/mcp-jail/).
+It is built as a single standalone executable in 100% pure Go—meaning there are no external C libraries, no background database services, and no runtime dependencies to install. You just download the binary and run it immediately.
+
+Interactive online documentation: [https://smford.github.io/mcp-jail/](https://smford.github.io/mcp-jail/).
 
 ```
 [ AI Host Agent ]
@@ -37,10 +39,31 @@ Interactive online documentation is available at [https://smford.github.io/mcp-j
 
 ---
 
+## Why mcp-jail?
+
+AI coding agents are powerful because they can use tools to read files, run terminal commands, and inspect system resources via MCP servers. But giving an autonomous AI agent direct access to your local system introduces serious risks:
+
+### Problems It Solves
+1. **Accidental File & System Destruction**: An autonomous agent attempting to clean up files or install packages might execute catastrophic commands like `rm -rf`, `git push --force`, or destructive cloud commands.
+2. **Directory Escapes & Sensitive Data Exposure**: MCP tools can wander outside your repository workspace, reading sensitive keys and configurations in `~/.ssh`, `~/.aws`, `~/.kube`, or `.env` files.
+3. **Secrets Leaking into AI Prompts**: Tool outputs (like database dumps, API error traces, or application logs) often contain live tokens, API keys, and passwords that get sent directly into third-party LLM cloud contexts.
+4. **Runaway Loops & Surprise Billing**: An AI caught in a hallucination or retry loop can spam hundreds of tool calls per minute, burning through rate limits and racking up costly API token bills.
+5. **Zero Visibility & Audit Trail**: Standard MCP connections run silently in the background. If something breaks or data changes unexpectedly, developers have no record of what tool was called, what arguments were passed, or what was returned.
+
+### Benefits You Get
+- **Autonomous Coding with Peace of Mind**: Confidently let AI agents run autonomous tasks knowing guardrails prevent destructive actions and keep the agent contained inside your project folder.
+- **Graceful Self-Correction (No Crashing)**: When `mcp-jail` blocks a forbidden command or path, it returns a helpful, standard error message back to the LLM explaining *why* it was blocked so the AI can correct itself and choose a safe alternative without crashing your session.
+- **Automatic Secret Scrubbing**: High-entropy strings, AWS keys, GitHub tokens, Slack keys, Stripe secrets, and private keys are scrubbed from outputs before they ever reach the model.
+- **Circuit Breakers for Cost & Rate Limits**: Set hard limits on tool calls per minute, maximum session calls, and token budgets to stop runaway agents in their tracks.
+- **Sub-Millisecond Flight Recorder**: Every tool call, argument, result, blocked attempt, and latency metric is automatically saved to a fast local SQLite log for instant auditing and debugging.
+- **Zero-Friction Standalone Setup**: Single binary with no external C dependencies or database drivers required. Install via Homebrew or download the binary and prefix any existing MCP server command with `mcp-jail wrap --`.
+
+---
+
 ## Key Highlights
 
-- **Zero-CGO & Single Binary**: Compiles with `CGO_ENABLED=0` for pure Go cross-platform distribution.
-- **Pure-Go SQLite Flight Recorder**: Built on `modernc.org/sqlite` with asynchronous channel writes (<1ms stdio latency).
+- **Single Standalone Binary**: Built in 100% pure Go with no external C libraries or system dependencies—runs out of the box on macOS, Linux, and Windows.
+- **Pure-Go SQLite Flight Recorder**: Built on an embedded SQLite engine (`modernc.org/sqlite`) with non-blocking asynchronous channel writes (<1ms stdio latency).
 - **Filesystem Boundary Guard**: Resolves relative paths (`../`), symlinks, and home shortcuts (`~`) against allowed workspace roots. Denies `~/.aws/**`, `~/.ssh/**`, `~/.kube/**`, `/etc/**`, and `**/.env*`.
 - **Command Argument Guard**: Regex filters preventing destructive shell commands (e.g. `rm -rf`, `curl | sh`, `git push --force`, `aws iam`, `terraform destroy`).
 - **Outbound Secret Scrubber**: Scans child server outputs before they reach the LLM context, masking credentials into `[REDACTED_BY_MCP_JAIL:<TYPE>]`.
@@ -51,17 +74,22 @@ Interactive online documentation is available at [https://smford.github.io/mcp-j
 
 ## Installation
 
+### Homebrew (macOS & Linux)
+```bash
+brew install smford/tap/mcp-jail
+```
+
+### Go Install
+```bash
+go install github.com/smford/mcp-jail/cmd/mcp-jail@latest
+```
+
 ### From Source
 ```bash
 git clone https://github.com/smford/mcp-jail.git
 cd mcp-jail
 make build
 # Binary is located at bin/mcp-jail
-```
-
-### Go Install
-```bash
-go install github.com/smford/mcp-jail/cmd/mcp-jail@latest
 ```
 
 ---
@@ -325,7 +353,7 @@ To run with coverage:
 make test-coverage
 ```
 
-To verify zero-CGO compilation:
+To verify standalone pure-Go compilation without external dependencies:
 ```bash
 CGO_ENABLED=0 go build -o bin/mcp-jail ./cmd/mcp-jail
 ```

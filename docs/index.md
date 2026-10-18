@@ -1,6 +1,8 @@
 # mcp-jail Documentation
 
-A high-performance, single-binary, zero-CGO local firewall and flight-recorder proxy for Model Context Protocol (MCP) servers and terminal AI coding agents.
+A lightweight security proxy and flight recorder for Model Context Protocol (MCP) servers and terminal AI coding agents.
+
+Built as a single standalone binary in 100% pure Go—requiring no external C libraries, no database services, and no runtime dependencies to install.
 
 ---
 
@@ -21,6 +23,25 @@ flowchart TD
     Proxy <-->|"stdio JSON-RPC 2.0"| Server
     Proxy -.->|"Async events (<1ms)"| DB
 ```
+
+---
+
+## Why mcp-jail?
+
+### Problems It Solves
+1. **Accidental File & System Destruction**: Autonomous agents attempting to run shell commands or clean up files can inadvertently execute destructive commands like `rm -rf`, `git push --force`, or cloud resource deletions.
+2. **Directory Escapes & Sensitive Data Exposure**: MCP tools can wander outside the repository workspace, reading sensitive keys and credentials in `~/.ssh`, `~/.aws`, `~/.kube`, or `.env` files.
+3. **Secrets Leaking into AI Prompts**: Database dumps, stack traces, and error logs frequently contain API keys, passwords, and tokens that get leaked into LLM prompts.
+4. **Runaway Loops & Billing Spikes**: An agent trapped in a hallucination or retry loop can spam dozens of tool calls per second, consuming massive token budgets before you can intervene.
+5. **Zero Visibility & Audit Trail**: Standard MCP connections run silently in the background with no persistent record of what commands were run, what data was returned, or what failed.
+
+### Benefits You Get
+- **Autonomous Coding with Peace of Mind**: Run AI agents autonomously knowing hard guardrails prevent destructive actions and keep the agent contained in your project.
+- **Graceful Self-Correction (No Crashing)**: When a forbidden action is blocked, `mcp-jail` returns a structured error explaining the blockage so the LLM can self-correct and pick a safe alternative without aborting the session.
+- **Automatic Secret Scrubbing**: Redacts AWS tokens, GitHub PATs, Slack/Stripe keys, private certificates, and high-entropy secrets before they reach the model.
+- **Rate & Token Circuit Breakers**: Prevents runaway billing loops by enforcing hard limits on tool calls per minute, session calls, and token consumption.
+- **Sub-Millisecond Flight Recorder**: Every interaction is logged to a fast local SQLite database with zero noticeable proxy latency (<1ms).
+- **Single Standalone Binary**: 100% pure Go with no external C dependencies or database drivers required. Install via Homebrew and run immediately.
 
 > [!IMPORTANT]
 > **Strict Stdout Invariant**: When running in `wrap` mode, `mcp-jail` NEVER writes logs, panics, or debug output to `os.Stdout`. `os.Stdout` is strictly reserved for valid JSON-RPC 2.0 messages destined for the Host Agent. All internal logging routes to `os.Stderr` or the SQLite flight recorder.

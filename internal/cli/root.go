@@ -15,10 +15,18 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "mcp-jail",
-	Short: "Zero-CGO local firewall and flight-recorder proxy for Model Context Protocol (MCP) servers",
-	Long: `mcp-jail sits transparently between an AI host agent (Claude Code, Cursor, Antigravity)
-and local MCP servers to enforce filesystem boundaries, guard against dangerous shell commands,
-prevent runaway agent rate/budget loops, and redact outbound credentials.`,
+	Short: "Lightweight security proxy and flight recorder for Model Context Protocol (MCP) servers",
+	Long: `mcp-jail is a standalone security guard and flight recorder for Model Context Protocol (MCP) servers.
+
+It sits transparently between your AI coding agent (Claude Code, Cursor, Antigravity, Claude Desktop)
+and local MCP servers to:
+  • Prevent accidental damage by blocking dangerous shell commands (rm -rf, git push --force)
+  • Enforce strict filesystem boundaries so tools cannot wander into sensitive directories (~/.ssh, ~/.aws, .env)
+  • Protect your privacy by automatically redacting API keys and secrets before they enter the AI prompt
+  • Stop runaway loops and surprise bills with rate and token budget limiters
+  • Provide a complete, queryable flight recorder of every tool call and blocked action
+
+Built as a pure Go standalone binary with no external C dependencies or runtime installations required.`,
 }
 
 var versionCmd = &cobra.Command{

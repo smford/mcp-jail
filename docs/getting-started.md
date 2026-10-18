@@ -6,15 +6,20 @@ Get up and running with `mcp-jail` in under two minutes.
 
 ## 1. Installation
 
-### Pre-built Binary or Go Install
+### Homebrew (macOS & Linux)
+```bash
+brew install smford/tap/mcp-jail
+```
+
+### Go Install
 Install directly to your `$GOPATH/bin`:
 
 ```bash
 go install github.com/smford/mcp-jail/cmd/mcp-jail@latest
 ```
 
-### Build from Source (Zero-CGO)
-`mcp-jail` compiles with standard Go 1.23+ without requiring CGO or external C compilers:
+### Build from Source
+`mcp-jail` is written in 100% pure Go and compiles as a single standalone executable without needing any C compiler, system headers, or external database libraries:
 
 ```bash
 git clone https://github.com/smford/mcp-jail.git

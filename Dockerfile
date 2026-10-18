@@ -7,7 +7,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Build statically linked zero-CGO binary
+# Build standalone statically linked pure-Go binary
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/mcp-jail ./cmd/mcp-jail
 

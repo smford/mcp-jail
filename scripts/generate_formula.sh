@@ -44,7 +44,7 @@ cat > "$OUTPUT_FILE" <<EOF
 
 # This formula was auto-generated for mcp-jail (https://github.com/smford/mcp-jail).
 class McpJail < Formula
-  desc "Zero-CGO local firewall and flight-recorder proxy for Model Context Protocol (MCP) servers"
+  desc "Lightweight security proxy and flight recorder for Model Context Protocol (MCP) servers"
   homepage "https://github.com/smford/mcp-jail"
   version "${CLEAN_VERSION}"
   license "MIT"

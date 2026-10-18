@@ -9,7 +9,7 @@ Understand how `mcp-jail` transparently inspects, enforces, and logs MCP stdio s
 1. **Zero Latency Overhead (<1ms)**: Tool calls and response parsing occur via zero-allocation buffered scanners; database writes occur asynchronously over non-blocking Go channels.
 2. **Strict Stdout Hygiene**: `os.Stdout` is strictly reserved for valid JSON-RPC 2.0 messages destined for the Host Agent. All proxy diagnostics and subprocess errors route to `os.Stderr`.
 3. **Graceful Self-Correction**: When requests violate security policies, `mcp-jail` injects valid MCP `tools/call` error results (`isError: true`) so the LLM agent self-corrects without crashing.
-4. **Zero-CGO Pure Go**: Binaries compile statically without external C dynamic libraries, utilizing `modernc.org/sqlite`.
+4. **Single Standalone Pure-Go Binary**: Compiles into a single self-contained binary with no external C dependencies, runtime libraries, or system drivers required, utilizing an embedded pure-Go SQLite engine (`modernc.org/sqlite`).
 
 ---
 
