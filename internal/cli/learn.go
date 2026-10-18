@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/spf13/cobra"
 	"github.com/smford/mcp-jail/internal/config"
 	"github.com/smford/mcp-jail/internal/learner"
 	"github.com/smford/mcp-jail/internal/proxy"
+	"github.com/spf13/cobra"
 )
 
 var learnCmd = &cobra.Command{

@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
 	"github.com/smford/mcp-jail/internal/recorder"
+	"github.com/spf13/cobra"
 )
 
 var rollbackCmd = &cobra.Command{

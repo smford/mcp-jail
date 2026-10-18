@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/yaml.v3"
 	"github.com/smford/mcp-jail/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 // Learner records tool invocations during an active MCP session and synthesizes a least-privilege security policy.
@@ -77,7 +77,7 @@ func (l *Learner) GenerateConfig() *config.Config {
 	cfg.Tools.Allowed = allowedTools
 
 	// 2. Allowed filesystem roots
-	roots := map[string]bool{"." : true}
+	roots := map[string]bool{".": true}
 	for p := range l.paths {
 		if filepath.IsAbs(p) {
 			// Find directory root
