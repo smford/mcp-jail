@@ -2,9 +2,12 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.23%2B-blue.svg)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-disabled-success.svg)](https://golang.org)
+[![Documentation](https://img.shields.io/badge/docs-GitHub_Pages-blue.svg)](https://smford.github.io/mcp-jail/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 `mcp-jail` is a high-performance, zero-CGO local firewall and flight-recorder proxy for the **Model Context Protocol (MCP)**. It sits transparently between your AI host agent (Claude Code, Antigravity, Cursor, Claude Desktop) and target MCP servers running locally.
+
+Interactive online documentation is available at [https://smford.github.io/mcp-jail/](https://smford.github.io/mcp-jail/).
 
 ```
 [ AI Host Agent ]
@@ -89,6 +92,29 @@ mcp-jail logs --blocked-only
 ### 4. View Session Statistics
 ```bash
 mcp-jail stats
+```
+
+---
+
+## Interactive Documentation
+
+Full interactive documentation rendered with [`md-web-renderer`](https://github.com/smford/md-web-renderer) is deployed via GitHub Actions:
+
+- **Live Documentation**: [https://smford.github.io/mcp-jail/](https://smford.github.io/mcp-jail/)
+- **Documentation Source**: [`docs/`](docs/)
+  - [Getting Started](docs/getting-started.md)
+  - [Architecture & Design](docs/architecture.md)
+  - [Policy & Firewall Engine](docs/policy-engine.md)
+  - [Outbound Secret Scrubber](docs/secret-scrubber.md)
+  - [SQLite Flight Recorder](docs/flight-recorder.md)
+  - [Client Integrations](docs/clients.md)
+  - [CLI Reference](docs/cli-reference.md)
+
+To preview the documentation locally with search, table of contents, and interactive Mermaid diagrams:
+
+```bash
+make docs-serve
+# Opens local server at http://localhost:8000
 ```
 
 ---

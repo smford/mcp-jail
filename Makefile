@@ -32,3 +32,11 @@ clean:
 
 install:
 	CGO_ENABLED=0 $(GO) install -trimpath -ldflags="-s -w" ./cmd/mcp-jail
+
+docs-serve:
+	@echo "Serving documentation at http://localhost:8000 ..."
+	python3 -m http.server 8000 --directory docs
+
+docs-update:
+	curl -sSL https://raw.githubusercontent.com/smford/md-web-renderer/main/index.html -o docs/index.html
+	touch docs/.nojekyll

@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation</title>
+
+  <!-- Core Libraries via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #1f2328;
+      --muted: #656d76;
+      --border: #d0d7de;
+      --link: #0969da;
+      --code-bg: #f6f8fa;
+      --accent: #2da44e;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --text: #e6edf3;
+        --muted: #848d97;
+        --border: #30363d;
+        --link: #4493f8;
+        --code-bg: #161b22;
+        --accent: #238636;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* Fixed Sticky Header */
+    header {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      backdrop-filter: blur(8px);
+      z-index: 20;
+    }
+
+    .brand a {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    #file-breadcrumb {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      margin-right: 0.25rem;
+    }
+
+    .offline-badge {
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      background: #d29922;
+      color: #000000;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+
+    .btn-toggle {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-toggle:hover { border-color: var(--muted); }
+
+    .search-kbd {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      padding: 1px 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--muted);
+    }
+
+    /* Layout Grid & Sticky TOC Sidebar */
+    .layout-wrapper {
+      width: 100%;
+      max-width: 1140px;
+      display: grid;
+      grid-template-columns: minmax(0, 820px) 240px;
+      gap: 3rem;
+      padding: 2rem 1.5rem 6rem;
+      justify-content: center;
+      align-items: start;
+    }
+
+    .layout-wrapper.toc-collapsed {
+      grid-template-columns: minmax(0, 820px);
+    }
+
+    .layout-wrapper.toc-collapsed .toc-sidebar {
+      display: none;
+    }
+
+    main {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .toc-sidebar {
+      position: sticky;
+      top: 4.5rem;
+      max-height: calc(100vh - 6rem);
+      overflow-y: auto;
+      border-left: 1px solid var(--border);
+      padding-left: 1rem;
+      font-size: 0.8rem;
+    }
+
+    .toc-header {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .toc-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toc-link {
+      color: var(--muted);
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      line-height: 1.35;
+      transition: color 0.15s, background-color 0.15s;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toc-link:hover {
+      color: var(--text);
+      background: var(--code-bg);
+    }
+
+    .toc-link.is-active {
+      color: var(--link);
+      font-weight: 600;
+      background: var(--code-bg);
+    }
+
+    .toc-link.depth-3 { padding-left: 1.25rem; font-size: 0.76rem; }
+    .toc-link.depth-4 { padding-left: 2rem; font-size: 0.73rem; }
+
+    @media (max-width: 1024px) {
+      .layout-wrapper { grid-template-columns: minmax(0, 820px); }
+      .toc-sidebar { display: none; }
+    }
+
+    /* Heading Anchors & Deep-linking */
+    #content h1, #content h2, #content h3, #content h4, #content h5, #content h6 {
+      scroll-margin-top: 4.5rem;
+      position: relative;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-top: 2rem;
+      margin-bottom: 0.8rem;
+    }
+
+    #content h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    #content h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    #content h3 { font-size: 1.25rem; }
+
+    .heading-anchor {
+      position: absolute;
+      left: -1.25rem;
+      padding-right: 0.25rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 400;
+      font-size: 0.85em;
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out, color 0.15s;
+    }
+
+    #content h1:hover .heading-anchor,
+    #content h2:hover .heading-anchor,
+    #content h3:hover .heading-anchor,
+    #content h4:hover .heading-anchor {
+      opacity: 1;
+    }
+
+    .heading-anchor:hover { color: var(--link); text-decoration: none; }
+
+    .heading-target-highlight {
+      animation: target-fade 1.2s ease-out;
+    }
+
+    @keyframes target-fade {
+      0% { background-color: rgba(9, 105, 218, 0.2); border-radius: 4px; }
+      100% { background-color: transparent; }
+    }
+
+    /* Content Typography & Elements */
+    #content p { margin: 1rem 0; }
+    #content a { color: var(--link); text-decoration: none; }
+    #content a:hover { text-decoration: underline; }
+
+    #content code:not([class*="language-"]) {
+      font-family: var(--font-mono);
+      font-size: 85%;
+      background: var(--code-bg);
+      padding: 0.2em 0.4em;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    #content pre:not(.mermaid) {
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.9rem;
+    }
+
+    /* Code Block Copy Button */
+    .code-block-wrapper {
+      position: relative;
+      margin: 1rem 0;
+    }
+
+    .code-block-wrapper pre {
+      margin: 0 !important;
+    }
+
+    .copy-code-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out, color 0.15s, border-color 0.15s, background 0.15s;
+      z-index: 5;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .code-block-wrapper:hover .copy-code-btn,
+    .copy-code-btn:focus {
+      opacity: 1;
+    }
+
+    .copy-code-btn:hover {
+      color: var(--text);
+      border-color: var(--muted);
+      background: var(--code-bg);
+    }
+
+    .copy-code-btn.is-copied {
+      color: var(--accent);
+      border-color: var(--accent);
+      font-weight: 600;
+      opacity: 1;
+    }
+
+    #content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+
+    #content table th, #content table td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    #content table th { background: var(--code-bg); }
+    #content img { max-width: 100%; height: auto; border-radius: 6px; }
+
+    /* GitHub-style Callout Alerts */
+    .markdown-alert {
+      padding: 0.75rem 1rem;
+      margin: 1.2rem 0;
+      border-left: 0.25rem solid var(--border);
+      border-radius: 0 6px 6px 0;
+      background: var(--code-bg);
+    }
+
+    .markdown-alert-title {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.25rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+
+    .markdown-alert.note { border-left-color: #0969da; }
+    .markdown-alert.note .markdown-alert-title { color: #0969da; }
+    .markdown-alert.tip { border-left-color: #1a7f37; }
+    .markdown-alert.tip .markdown-alert-title { color: #1a7f37; }
+    .markdown-alert.warning { border-left-color: #9a6700; }
+    .markdown-alert.warning .markdown-alert-title { color: #9a6700; }
+    .markdown-alert.important { border-left-color: #8250df; }
+    .markdown-alert.important .markdown-alert-title { color: #8250df; }
+    .markdown-alert.caution { border-left-color: #cf222e; }
+    .markdown-alert.caution .markdown-alert-title { color: #cf222e; }
+
+    /* Interactive Diagram Viewport */
+    .mermaid-container {
+      position: relative;
+      margin: 1.5rem 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--code-bg);
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .mermaid {
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      cursor: grab;
+      user-select: none;
+      transform-origin: 0 0;
+      will-change: transform;
+      padding: 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .mermaid.is-panning { cursor: grabbing; }
+
+    .diagram-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out;
+      z-index: 5;
+    }
+
+    .mermaid-container:hover .diagram-actions { opacity: 1; }
+
+    .diagram-btn-group {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .diagram-btn {
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 4px 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .diagram-btn:last-child { border-right: none; }
+    .diagram-btn:hover { background: var(--code-bg); color: var(--link); }
+
+    /* Topology Node Map */
+    #graph-view-panel {
+      display: none;
+      width: 100%;
+      height: 380px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--code-bg);
+      margin-bottom: 2rem;
+      position: relative;
+    }
+
+    #graph-canvas { width: 100%; height: 100%; border-radius: 6px; }
+    .graph-caption {
+      position: absolute;
+      bottom: 8px;
+      left: 12px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    /* Local File Notice */
+    .file-notice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      background: #ddf4ff;
+      border: 1px solid #54aeff;
+      color: #0969da;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .file-notice {
+        background: #0c2d6b;
+        border-color: #1f6feb;
+        color: #58a6ff;
+      }
+    }
+
+    .notice-dismiss {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: inherit;
+      line-height: 1;
+      padding: 0 4px;
+    }
+
+    /* Command Palette / Search Modal */
+    .search-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 12vh;
+    }
+
+    .search-modal:not([hidden]) {
+      display: flex;
+    }
+
+    .search-modal[hidden] {
+      display: none !important;
+    }
+
+    .search-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+    }
+
+    .search-dialog {
+      position: relative;
+      width: 100%;
+      max-width: 620px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: 70vh;
+    }
+
+    .search-input-wrapper {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--code-bg);
+    }
+
+    #search-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+    }
+
+    .search-close-btn {
+      background: transparent;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      color: inherit;
+    }
+
+    .search-results {
+      overflow-y: auto;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .search-item {
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .search-item:hover, .search-item.is-selected {
+      background: var(--code-bg);
+      border-color: var(--border);
+    }
+
+    .search-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .search-item-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--link);
+    }
+
+    .search-item-path {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .search-item-snippet {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-item mark {
+      background: rgba(255, 212, 0, 0.35);
+      color: inherit;
+      font-weight: 600;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .search-empty {
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .state-banner {
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--code-bg);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand"><a href="#index.md">Documentation</a></div>
+    <div class="nav-actions">
+      <span id="file-breadcrumb">index.md</span>
+      <button class="btn-toggle" id="btn-search" title="Search documentation (⌘K / Ctrl+K)">
+        <span>Search</span>
+        <kbd class="search-kbd">⌘K</kbd>
+      </button>
+      <button class="btn-toggle" id="btn-toggle-graph" title="Toggle Document Node Map">Node Map</button>
+      <button class="btn-toggle" id="btn-toggle-toc" title="Toggle Table of Contents">TOC</button>
+    </div>
+  </header>
+
+  <div class="layout-wrapper" id="layout-wrapper">
+    <main>
+      <!-- Document Topology Node Map Panel -->
+      <div id="graph-view-panel">
+        <canvas id="graph-canvas"></canvas>
+        <div class="graph-caption">Interactive Document Topology: drag nodes or click targets to navigate</div>
+      </div>
+
+      <!-- Rendered Markdown Article -->
+      <article id="content">
+        <div class="state-banner">Loading...</div>
+      </article>
+    </main>
+
+    <!-- Sticky Table of Contents Sidebar -->
+    <aside id="toc-sidebar" class="toc-sidebar">
+      <div class="toc-header">On this page</div>
+      <nav id="toc-nav" class="toc-nav"></nav>
+    </aside>
+  </div>
+
+  <!-- Command Palette Modal -->
+  <div id="search-modal" class="search-modal" hidden>
+    <div class="search-backdrop" id="search-backdrop"></div>
+    <div class="search-dialog" role="dialog" aria-modal="true" aria-label="Search documentation">
+      <div class="search-input-wrapper">
+        <input 
+          type="search" 
+          id="search-input" 
+          placeholder="Search documents, sections, or keywords..." 
+          autocomplete="off" 
+          spellcheck="false"
+        >
+        <button type="button" class="search-close-btn" id="search-close-btn" title="Close (ESC)">
+          <kbd class="search-kbd">ESC</kbd>
+        </button>
+      </div>
+      <div id="search-results" class="search-results"></div>
+    </div>
+  </div>
+
+  <!-- Embedded Fallback Documents (enables offline and file:// local execution) -->
+  <script type="text/markdown" id="doc:index.md">
+# System Architecture & Platform Documentation
+
+Welcome to the zero-build documentation engine. This `index.md` file serves as a comprehensive test suite for routing, graphical diagram rendering, scroll-spy navigation, offline caching, and full-text search.
+
+> [!NOTE]
+> Press `⌘K` (macOS) or `Ctrl+K` (Linux/Windows) at any time to open the Command Palette and search across headings and document content.
+
+---
+
+## 1. Graphical Diagrams (Mermaid.js)
+
+Hover over either diagram below to test the **floating toolbar** (`+`, `−`, `↺`, `SVG`, `PNG`). Use your mouse wheel to zoom toward your cursor, click-and-drag to pan, or double-click to reset the viewport.
+
+### Request & Caching Lifecycle
+
+```mermaid
+graph LR
+    User([User Browser]) -->|Navigate #index.md| Router{Hash Router}
+    Router -->|1. Check Cache| Cache[(CacheStorage API)]
+    Cache -->|Hit| Render[Immediate DOM Render]
+    Router -->|2. Revalidate| Network[HTTP Fetch]
+    Network -->|200 OK| HashCheck{SHA-256 Changed?}
+    HashCheck -->|Yes| UpdateCache[Update Cache & Re-render]
+    HashCheck -->|No| Done([No-Op])
+    Network -->|Offline / Error| Badge[Show Offline Badge]
+```
+
+### Sequence Topology
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Engineer
+    participant UI as index.html
+    participant Parser as Marked + DOMPurify
+    participant Graphics as Mermaid + PrismJS
+    participant Indexer as Idle Search Crawler
+
+    Dev->>UI: Opens #index.md#1-graphical-diagrams-mermaidjs
+    UI->>Parser: Parse Raw Markdown & Sanitize SVG/HTML
+    Parser-->>UI: Safe HTML Fragment
+    UI->>Graphics: Render Vector Diagrams & Syntax Highlighting
+    UI->>Indexer: Discover Outbound *.md Links
+    Indexer-->>UI: Pre-warm CacheStorage & Search Map
+```
+
+---
+
+## 2. GitHub Callout Alerts
+
+All five GitHub-flavored blockquote alerts are parsed and styled automatically:
+
+> [!TIP]
+> Click the **Node Map** button in the top navigation bar to visualize this document's heading hierarchy and outbound `.md` links as an interactive 2D spring graph.
+
+> [!IMPORTANT]
+> Relative links to other Markdown files (such as `[Architecture Overview](architecture/overview.md)`) are intercepted automatically and converted into hash routes without full page reloads.
+
+> [!WARNING]
+> Because browsers block `fetch()` over the `file://` protocol, always serve this directory over a local HTTP server (e.g., `python3 -m http.server 8000`).
+
+> [!CAUTION]
+> Modifying DOMPurify's SVG whitelist will prevent Mermaid vector nodes from rendering properly.
+
+---
+
+## 3. Code Highlighting & One-Click Copy
+
+Hover over the top-right corner of the code blocks below to test the **Copy** button and PrismJS dynamic language autoloading.
+
+### Go Concurrent Worker Pattern
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+func worker(ctx context.Context, id int, jobs <-chan string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job, ok := <-jobs:
+			if !ok {
+				return
+			}
+			fmt.Printf("[worker-%d] processed: %s\n", id, job)
+		}
+	}
+}
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	jobs := make(chan string, 3)
+	var wg sync.WaitGroup
+
+	for w := 1; w <= 2; w++ {
+		wg.Add(1)
+		go worker(ctx, w, jobs, &wg)
+	}
+
+	jobs <- "index.md"
+	jobs <- "architecture/overview.md"
+	close(jobs)
+	wg.Wait()
+}
+```
+
+### Terraform Static Hosting Configuration
+
+```hcl
+resource "aws_s3_bucket" "docs_portal" {
+  bucket_prefix = "markdown-docs-engine-"
+  force_destroy = true
+
+  tags = {
+    Component   = "documentation-engine"
+    Environment = "production"
+  }
+}
+
+resource "aws_s3_bucket_website_configuration" "docs_site" {
+  bucket = aws_s3_bucket.docs_portal.id
+
+  index_document {
+    suffix = "index.html"
+  }
+}
+```
+
+---
+
+## 4. Structured Data & Deep Linking
+
+Test intra-document deep linking by clicking this anchor to jump back to [Graphical Diagrams](#1-graphical-diagrams-mermaidjs), or hover over any heading to see its `#` permalink.
+
+| Feature Module | Technology Used | Offline Capable |
+| :--- | :--- | :--- |
+| **Markdown Parser** | `marked.js` (GFM enabled) | Yes (after initial load) |
+| **XSS Sanitizer** | `DOMPurify` (SVG whitelisted) | Yes |
+| **Vector Graphics** | `Mermaid.js` + Custom Pan/Zoom | Yes |
+| **Document Cache** | Native `window.caches` + `SubtleCrypto` | Yes (SWR lifecycle) |
+| **Search Index** | In-Memory `Map` + `requestIdleCallback` | Yes (pre-warmed) |
+
+---
+
+## 5. Multi-File Routing & Subdirectory Links
+
+To test multi-file navigation, the background search crawler, and the **Node Map** graph edges, create any of the linked files below in your directory:
+
+* [Getting Started Guide](getting-started.md) — Test sibling file routing (`#getting-started.md`).
+* [System Architecture Overview](architecture/overview.md) — Test subdirectory path resolution (`#architecture/overview.md`).
+* [API Reference: Authentication](api/reference.md#authentication) — Test cross-document deep linking (`#api/reference.md#authentication`).
+
+  </script>
+  <script type="text/markdown" id="doc:architecture/overview.md">
+# System Architecture Overview
+
+[← Back to Home (`../index.md`)](../index.md)
+
+This document resides inside the `architecture/` subdirectory (`#architecture/overview.md`). It tests **relative path resolution**, **subdirectory context**, and **parent directory traversal**.
+
+> [!TIP]
+> Open the **Command Palette (`⌘K` / `Ctrl+K`)** and search for `State Machine` or `Subdirectory`. Because `index.md` links to this file, the idle background crawler automatically prefetches, caches, and indexes this page before you even visit it.
+
+---
+
+## 1. Client-Side Routing State Machine
+
+The diagram below illustrates how `index.html` resolves relative links when navigating inside nested folders like `architecture/`:
+
+```mermaid
+stateDiagram-v2
+    [*] --> RootIndex: Load #index.md
+    RootIndex --> SubDir: Click [Overview](architecture/overview.md)
+    
+    state SubDir {
+        [*] --> ResolveContext
+        ResolveContext: currentPath = "architecture/overview.md"
+        ResolveContext: baseDir = "architecture/"
+        ResolveContext --> RewriteAssets: Rewrite <img> & <a> relative to baseDir
+    }
+
+    SubDir --> SiblingDoc: Click [Security](security.md) -> #architecture/security.md
+    SubDir --> RootIndex: Click [Home](../index.md) -> #index.md
+```
+
+---
+
+## 2. Relative Path Resolution Matrix
+
+When viewing `architecture/overview.md`, the JavaScript router resolves links relative to `architecture/` using the browser's `URL` constructor:
+
+| Markdown Link Written | Active Document Context | Resolved Hash Route |
+| :--- | :--- | :--- |
+| `[Home](../index.md)` | `architecture/overview.md` | `#index.md` |
+| `[Code Section](../index.md#3-code-highlighting--one-click-copy)` | `architecture/overview.md` | `#index.md#3-code-highlighting--one-click-copy` |
+| `[Security Spec](security.md)` | `architecture/overview.md` | `#architecture/security.md` |
+| `[Deep Nest](aws/vpc.md)` | `architecture/overview.md` | `#architecture/aws/vpc.md` |
+
+---
+
+## 3. Infrastructure Policy Example (OPA / Rego)
+
+Testing syntax highlighting and the **Copy** button for policy-as-code inside a nested document:
+
+```rego
+package system.architecture.routing
+
+default allow_navigation := false
+
+# Allow navigation if target is a relative markdown path without directory traversal above root
+allow_navigation if {
+    endswith(input.target_path, ".md")
+    not startswith(input.target_path, "http")
+    not contains(input.resolved_url, "..")
+}
+```
+
+---
+
+## 4. Test Cross-Document Deep Linking
+
+Click the links below to verify parent traversal and compound hash deep-linking back to the root document:
+
+* [Return to Root Document (`../index.md`)](../index.md)
+* [Jump directly to Root Graphical Diagrams (`../index.md#1-graphical-diagrams-mermaidjs`)](../index.md#1-graphical-diagrams-mermaidjs)
+* [Jump directly to Root Code Highlighting (`../index.md#3-code-highlighting--one-click-copy`)](../index.md#3-code-highlighting--one-click-copy)
+
+  </script>
+
+  <script>
+    // --- Global State & Configuration ---
+    const CACHE_NAME = 'docs-cache-v1';
+    const contentEl = document.getElementById('content');
+    const breadcrumbEl = document.getElementById('file-breadcrumb');
+    const graphPanel = document.getElementById('graph-view-panel');
+    const graphCanvas = document.getElementById('graph-canvas');
+    const btnToggleGraph = document.getElementById('btn-toggle-graph');
+    const layoutWrapper = document.getElementById('layout-wrapper');
+    const tocNav = document.getElementById('toc-nav');
+    const btnToggleToc = document.getElementById('btn-toggle-toc');
+
+    let currentPath = '';
+    let currentContentHash = '';
+    let isGraphActive = false;
+    let isTocCollapsed = false;
+    let headingObserver = null;
+    let graphNodes = [];
+    let graphEdges = [];
+
+    const docIndex = new Map();
+    const indexedUrls = new Set();
+
+    // Theme awareness
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    // Initialize Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: prefersDark ? 'dark' : 'neutral',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+      securityLevel: 'loose'
+    });
+
+    // Custom Marked extension to isolate Mermaid blocks
+    const renderer = {
+      code(code, lang) {
+        if (lang === 'mermaid') {
+          return `<pre class="mermaid">${code}</pre>`;
+        }
+        return false;
+      }
+    };
+    marked.use({ renderer });
+
+    // --- Slugification & Deep Linking ---
+    function slugify(text) {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    function processHeadings(rootEl, activeFilePath) {
+      const slugCounts = new Map();
+      const headings = rootEl.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+      headings.forEach(heading => {
+        const text = heading.textContent.trim();
+        let slug = slugify(text) || 'section';
+
+        if (slugCounts.has(slug)) {
+          const count = slugCounts.get(slug) + 1;
+          slugCounts.set(slug, count);
+          slug = `${slug}-${count}`;
+        } else {
+          slugCounts.set(slug, 0);
+        }
+
+        heading.id = slug;
+
+        const anchor = document.createElement('a');
+        anchor.className = 'heading-anchor';
+        anchor.href = `#${activeFilePath}#${slug}`;
+        anchor.setAttribute('aria-label', `Permalink to ${text}`);
+        anchor.innerHTML = '#';
+        heading.prepend(anchor);
+      });
+    }
+
+    function scrollToSection(sectionId) {
+      if (!sectionId) return;
+      requestAnimationFrame(() => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.classList.add('heading-target-highlight');
+          setTimeout(() => el.classList.remove('heading-target-highlight'), 1200);
+        }
+      });
+    }
+
+    // --- Dynamic Table of Contents & Scroll-Spy ---
+    function buildTableOfContents(rootEl, activeFilePath) {
+      if (headingObserver) {
+        headingObserver.disconnect();
+      }
+
+      const headings = Array.from(rootEl.querySelectorAll('h2, h3, h4'));
+
+      if (headings.length < 2) {
+        tocNav.innerHTML = '';
+        layoutWrapper.classList.add('toc-collapsed');
+        return;
+      }
+
+      layoutWrapper.classList.toggle('toc-collapsed', isTocCollapsed);
+
+      tocNav.innerHTML = headings.map(h => {
+        const depth = h.tagName.substring(1);
+        const cleanText = h.textContent.replace(/^#\s*/, '').trim();
+        const targetHash = `#${activeFilePath}#${h.id}`;
+        return `<a href="${targetHash}" class="toc-link depth-${depth}" data-target-id="${h.id}" title="${DOMPurify.sanitize(cleanText)}">${DOMPurify.sanitize(cleanText)}</a>`;
+      }).join('');
+
+      const tocLinks = tocNav.querySelectorAll('.toc-link');
+
+      headingObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const activeId = entry.target.id;
+            tocLinks.forEach(link => {
+              const isMatch = link.dataset.targetId === activeId;
+              link.classList.toggle('is-active', isMatch);
+              if (isMatch) {
+                link.scrollIntoView({ block: 'nearest' });
+              }
+            });
+          }
+        });
+      }, {
+        rootMargin: '-64px 0px -75% 0px',
+        threshold: 0
+      });
+
+      headings.forEach(h => headingObserver.observe(h));
+    }
+
+    btnToggleToc.addEventListener('click', () => {
+      isTocCollapsed = !isTocCollapsed;
+      layoutWrapper.classList.toggle('toc-collapsed', isTocCollapsed);
+    });
+
+    // --- One-Click Code Copy Buttons ---
+    function attachCopyButtons(rootEl) {
+      const codeBlocks = rootEl.querySelectorAll('pre:not(.mermaid)');
+
+      codeBlocks.forEach(pre => {
+        if (pre.parentElement.classList.contains('code-block-wrapper')) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(pre);
+
+        const btn = document.createElement('button');
+        btn.className = 'copy-code-btn';
+        btn.type = 'button';
+        btn.textContent = 'Copy';
+        btn.setAttribute('aria-label', 'Copy code to clipboard');
+
+        btn.addEventListener('click', async () => {
+          const codeEl = pre.querySelector('code');
+          const rawCode = codeEl ? codeEl.innerText : pre.innerText;
+
+          try {
+            await navigator.clipboard.writeText(rawCode);
+          } catch (_) {
+            const textArea = document.createElement('textarea');
+            textArea.value = rawCode;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+          }
+
+          btn.textContent = 'Copied!';
+          btn.classList.add('is-copied');
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('is-copied');
+          }, 1800);
+        });
+
+        wrapper.appendChild(btn);
+      });
+    }
+
+    // --- Path Resolution ---
+    function resolveRelativePath(target, base) {
+      const dummyOrigin = 'https://docs.local/';
+      const baseDir = base.includes('/') ? base.substring(0, base.lastIndexOf('/') + 1) : '';
+      return new URL(target, dummyOrigin + baseDir).pathname.replace(/^\//, '');
+    }
+
+    // --- Embedded Fallback Resolver ---
+    function getEmbeddedDocument(filePath) {
+      const cleanPath = filePath.replace(/^\/+/, "");
+      const el = document.getElementById("doc:" + cleanPath);
+      if (el && el.textContent) {
+        return el.textContent.trim();
+      }
+      if (cleanPath === "index.md") {
+        const fallback = document.getElementById("doc:index.md");
+        if (fallback) return fallback.textContent.trim();
+      }
+      return null;
+    }
+
+    function showFileProtocolNotice() {
+      if (document.getElementById("file-protocol-notice")) return;
+      const notice = document.createElement("div");
+      notice.id = "file-protocol-notice";
+      notice.className = "file-notice";
+      notice.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span style="font-weight: 600;">ℹ Local File Mode (file://):</span>
+          <span>Browsers restrict local file fetching. Bundled docs (<code>index.md</code>, <code>architecture/overview.md</code>) load offline. For full dynamic multi-file navigation, run: <code style="padding: 1px 5px; background: rgba(0,0,0,0.06); border-radius: 3px;">python3 -m http.server 8000</code></span>
+        </div>
+        <button type="button" class="notice-dismiss" onclick="this.parentElement.remove()" title="Dismiss">&times;</button>
+      `;
+      contentEl.prepend(notice);
+    }
+
+    // --- GitHub Alerts Parser ---
+    function parseGitHubAlerts(html) {
+      return html.replace(/<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\](?:\s*<br\s*\/?>|\s*)([\s\S]*?)<\/blockquote>/gis, (match, type, body) => {
+        const lower = type.toLowerCase();
+        return `
+          <div class="markdown-alert ${lower}">
+            <div class="markdown-alert-title">${type}</div>
+            <div>${body.startsWith("<p>") ? body : "<p>" + body}</div>
+          </div>
+        `;
+      });
+    }
+
+    // --- SubtleCrypto & Caching Layer ---
+    async function computeHash(text) {
+      try {
+        if (window.crypto && crypto.subtle) {
+          const msgUint8 = new TextEncoder().encode(text);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
+          return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+        }
+      } catch (_) {}
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(i);
+        hash |= 0;
+      }
+      return "fallback-" + hash;
+    }
+
+    async function getDocsCache() {
+      try {
+        if ("caches" in window && window.location.protocol.startsWith("http")) {
+          return await caches.open(CACHE_NAME);
+        }
+      } catch (e) {
+        console.warn("CacheStorage not accessible:", e);
+      }
+      return null;
+    }
+
+    function setOfflineIndicator(isOffline) {
+      const existing = document.getElementById("offline-badge");
+      if (isOffline && !existing) {
+        const badge = document.createElement("span");
+        badge.id = "offline-badge";
+        badge.className = "offline-badge";
+        badge.textContent = "Offline (Cached)";
+        breadcrumbEl.appendChild(badge);
+      } else if (!isOffline && existing) {
+        existing.remove();
+      }
+    }
+
+    // --- Core Document Loader (SWR) ---
+    async function loadMarkdown(filePath, targetSectionId) {
+      currentPath = filePath;
+      breadcrumbEl.textContent = filePath;
+
+      const cache = await getDocsCache();
+      let hasRenderedCache = false;
+
+      if (cache) {
+        try {
+          const cachedResponse = await cache.match(filePath);
+          if (cachedResponse) {
+            const cachedText = await cachedResponse.text();
+            currentContentHash = await computeHash(cachedText);
+            await renderDocumentContent(filePath, cachedText, true, targetSectionId);
+            hasRenderedCache = true;
+          }
+        } catch (_) {}
+      }
+
+      const isFileProtocol = window.location.protocol === "file:";
+
+      if (!hasRenderedCache) {
+        const embedded = getEmbeddedDocument(filePath);
+        if (isFileProtocol && embedded) {
+          currentContentHash = await computeHash(embedded);
+          await renderDocumentContent(filePath, embedded, false, targetSectionId);
+          showFileProtocolNotice();
+          return;
+        }
+        contentEl.innerHTML = `<div class="state-banner">Loading ${filePath}...</div>`;
+      }
+
+      try {
+        let networkText = null;
+        try {
+          const response = await fetch(filePath, { cache: "no-cache" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to load ${filePath}`);
+          networkText = await response.text();
+        } catch (fetchErr) {
+          const embedded = getEmbeddedDocument(filePath);
+          if (embedded) {
+            networkText = embedded;
+          } else {
+            throw fetchErr;
+          }
+        }
+
+        const networkHash = await computeHash(networkText);
+
+        if (cache) {
+          try {
+            await cache.put(filePath, new Response(networkText, {
+              headers: { "Content-Type": "text/markdown" }
+            }));
+          } catch (_) {}
+        }
+
+        setOfflineIndicator(false);
+
+        if (!hasRenderedCache || networkHash !== currentContentHash) {
+          currentContentHash = networkHash;
+          await renderDocumentContent(filePath, networkText, false, targetSectionId);
+        }
+
+        if (isFileProtocol) {
+          showFileProtocolNotice();
+        }
+      } catch (err) {
+        if (hasRenderedCache) {
+          setOfflineIndicator(true);
+          return;
+        }
+
+        const advice = isFileProtocol 
+          ? `<div style="margin-top: 0.75rem; color: var(--muted); font-size: 0.85rem; line-height: 1.5;">
+               <strong>Browser Security Restriction:</strong> Chrome blocks direct local file fetching (<code>file://</code>) due to CORS security rules.<br>
+               To browse all Markdown files and subdirectories, serve this folder via an HTTP server:<br>
+               <pre style="margin: 0.5rem 0; padding: 0.5rem; background: var(--code-bg); border-radius: 4px; font-size: 0.8rem;">python3 -m http.server 8000</pre>
+               Then open <a href="http://localhost:8000" style="color: var(--link);">http://localhost:8000</a> in your browser.
+             </div>` 
+          : "";
+
+        contentEl.innerHTML = `
+          <div class="state-banner" style="color: #cf222e; border-color: #cf222e; text-align: left;">
+            <strong>Error:</strong> Failed to load <code>${filePath}</code> (${err.message})
+            ${advice}
+            <div style="margin-top: 1rem;">
+              <a href="#index.md" style="color: var(--link);">Return to home (index.md)</a>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // --- Document Rendering Pipeline ---
+    async function renderDocumentContent(filePath, markdownText, isCached, targetSectionId) {
+      indexDocument(filePath, markdownText);
+
+      const rawHtml = marked.parse(markdownText);
+      const sanitized = DOMPurify.sanitize(rawHtml, {
+        ADD_TAGS: ['svg', 'g', 'path', 'rect', 'circle', 'text', 'line', 'polygon', 'foreignObject'],
+        ADD_ATTR: ['viewBox', 'd', 'fill', 'stroke', 'transform', 'marker-end', 'x', 'y', 'width', 'height']
+      });
+      contentEl.innerHTML = parseGitHubAlerts(sanitized);
+
+      const h1 = contentEl.querySelector('h1');
+      document.title = h1 ? `${h1.textContent} - Docs` : `${filePath} - Docs`;
+
+      processHeadings(contentEl, filePath);
+      buildTableOfContents(contentEl, filePath);
+
+      const baseDir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/') + 1) : '';
+      contentEl.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src');
+        if (src && !src.startsWith('http') && !src.startsWith('/')) {
+          img.src = baseDir + src;
+        }
+      });
+
+      const mermaidElements = contentEl.querySelectorAll('.mermaid');
+      if (mermaidElements.length > 0) {
+        try {
+          await mermaid.run({ nodes: Array.from(mermaidElements) });
+          attachDiagramControls(contentEl);
+        } catch (mErr) {
+          console.warn('Mermaid rendering error:', mErr);
+        }
+      }
+
+      Prism.highlightAllUnder(contentEl);
+      attachCopyButtons(contentEl);
+
+      extractGraphTopology(filePath, contentEl);
+      if (isGraphActive) renderGraphTopology();
+      discoverAndWarmIndex(filePath, contentEl);
+
+      if (targetSectionId) {
+        scrollToSection(targetSectionId);
+      } else if (!isCached) {
+        window.scrollTo(0, 0);
+      }
+    }
+
+    // --- Interactive Diagrams (Pan, Zoom & Export) ---
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadSvg(svgElement, filename) {
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svgElement);
+      if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      triggerDownload(blob, filename);
+    }
+
+    function downloadPng(svgElement, filename) {
+      const bbox = svgElement.getBoundingClientRect();
+      const width = bbox.width || 800;
+      const height = bbox.height || 600;
+      const scale = 2;
+
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svgElement);
+      if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+
+      const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(blob => {
+          if (blob) triggerDownload(blob, filename);
+        }, 'image/png');
+      };
+      img.src = url;
+    }
+
+    function makeInteractiveDiagram(wrapper, targetEl) {
+      let scale = 1;
+      let panX = 0;
+      let panY = 0;
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+
+      function updateTransform() {
+        targetEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      }
+
+      function resetView() {
+        scale = 1; panX = 0; panY = 0;
+        updateTransform();
+      }
+
+      function applyZoom(factor, clientX, clientY) {
+        const rect = wrapper.getBoundingClientRect();
+        const originX = clientX !== undefined ? clientX - rect.left : rect.width / 2;
+        const originY = clientY !== undefined ? clientY - rect.top : rect.height / 2;
+
+        const nextScale = Math.min(Math.max(scale * factor, 0.3), 5.0);
+        const ratio = nextScale / scale;
+
+        panX = originX - (originX - panX) * ratio;
+        panY = originY - (originY - panY) * ratio;
+        scale = nextScale;
+        updateTransform();
+      }
+
+      wrapper.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        applyZoom(e.deltaY < 0 ? 1.15 : 0.85, e.clientX, e.clientY);
+      }, { passive: false });
+
+      targetEl.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        startX = e.clientX - panX;
+        startY = e.clientY - panY;
+        targetEl.classList.add('is-panning');
+        targetEl.setPointerCapture(e.pointerId);
+      });
+
+      targetEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        updateTransform();
+      });
+
+      function endDrag(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        targetEl.classList.remove('is-panning');
+        try { targetEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      }
+
+      targetEl.addEventListener('pointerup', endDrag);
+      targetEl.addEventListener('pointercancel', endDrag);
+
+      wrapper.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.diagram-actions')) return;
+        resetView();
+      });
+
+      return {
+        zoomIn: () => applyZoom(1.25),
+        zoomOut: () => applyZoom(0.8),
+        reset: resetView
+      };
+    }
+
+    function attachDiagramControls(rootEl) {
+      rootEl.querySelectorAll('.mermaid').forEach((mermaidEl, idx) => {
+        const svg = mermaidEl.querySelector('svg');
+        if (!svg) return;
+
+        let wrapper = mermaidEl.parentElement;
+        if (!wrapper.classList.contains('mermaid-container')) {
+          wrapper = document.createElement('div');
+          wrapper.className = 'mermaid-container';
+          mermaidEl.parentNode.insertBefore(wrapper, mermaidEl);
+          wrapper.appendChild(mermaidEl);
+        }
+
+        const controller = makeInteractiveDiagram(wrapper, mermaidEl);
+
+        const actions = document.createElement('div');
+        actions.className = 'diagram-actions';
+        actions.innerHTML = `
+          <div class="diagram-btn-group">
+            <button class="diagram-btn" data-act="in" title="Zoom In">+</button>
+            <button class="diagram-btn" data-act="out" title="Zoom Out">−</button>
+            <button class="diagram-btn" data-act="reset" title="Reset View">↺</button>
+          </div>
+          <div class="diagram-btn-group">
+            <button class="diagram-btn" data-act="svg" title="Download SVG">SVG</button>
+            <button class="diagram-btn" data-act="png" title="Download PNG">PNG</button>
+          </div>
+        `;
+
+        actions.addEventListener('click', (e) => {
+          const btn = e.target.closest('.diagram-btn');
+          if (!btn) return;
+          const act = btn.getAttribute('data-act');
+          if (act === 'in') controller.zoomIn();
+          if (act === 'out') controller.zoomOut();
+          if (act === 'reset') controller.reset();
+          if (act === 'svg') downloadSvg(svg, `diagram-${idx + 1}.svg`);
+          if (act === 'png') downloadPng(svg, `diagram-${idx + 1}.png`);
+        });
+
+        wrapper.appendChild(actions);
+      });
+    }
+
+    // --- Document Topology Node Map ---
+    function extractGraphTopology(activeFile, rootEl) {
+      graphNodes = [{ id: activeFile, label: activeFile, type: 'file', x: 200, y: 180, vx: 0, vy: 0 }];
+      graphEdges = [];
+
+      rootEl.querySelectorAll('h2, h3').forEach((h, idx) => {
+        const id = `${activeFile}#${h.id || idx}`;
+        graphNodes.push({ id, label: h.textContent.replace(/^#\s*/, ''), type: 'section', x: 220 + (idx * 20), y: 120, vx: 0, vy: 0 });
+        graphEdges.push({ from: activeFile, to: id });
+      });
+
+      rootEl.querySelectorAll('a').forEach(a => {
+        const href = a.getAttribute('href');
+        if (href && href.endsWith('.md') && !href.startsWith('http')) {
+          const target = resolveRelativePath(href, activeFile);
+          if (!graphNodes.find(n => n.id === target)) {
+            graphNodes.push({ id: target, label: target, type: 'link', x: 300, y: 240, vx: 0, vy: 0 });
+          }
+          graphEdges.push({ from: activeFile, to: target });
+        }
+      });
+    }
+
+    function renderGraphTopology() {
+      const ctx = graphCanvas.getContext('2d');
+      graphCanvas.width = graphPanel.clientWidth;
+      graphCanvas.height = graphPanel.clientHeight;
+
+      function step() {
+        if (!isGraphActive) return;
+        ctx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+        ctx.strokeStyle = prefersDark ? '#30363d' : '#d0d7de';
+        ctx.lineWidth = 1.5;
+        graphEdges.forEach(edge => {
+          const src = graphNodes.find(n => n.id === edge.from);
+          const dst = graphNodes.find(n => n.id === edge.to);
+          if (src && dst) {
+            ctx.beginPath();
+            ctx.moveTo(src.x, src.y);
+            ctx.lineTo(dst.x, dst.y);
+            ctx.stroke();
+          }
+        });
+
+        graphNodes.forEach((node, i) => {
+          node.vx += (graphCanvas.width / 2 - node.x) * 0.002;
+          node.vy += (graphCanvas.height / 2 - node.y) * 0.002;
+
+          graphNodes.forEach((other, j) => {
+            if (i !== j) {
+              const dx = node.x - other.x;
+              const dy = node.y - other.y;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              if (dist < 90) {
+                const force = (90 - dist) / dist;
+                node.vx += dx * force * 0.025;
+                node.vy += dy * force * 0.025;
+              }
+            }
+          });
+
+          node.x += node.vx;
+          node.y += node.vy;
+          node.vx *= 0.85;
+          node.vy *= 0.85;
+
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.type === 'file' ? 8 : (node.type === 'link' ? 6 : 4), 0, Math.PI * 2);
+          ctx.fillStyle = node.type === 'file' ? '#0969da' : (node.type === 'link' ? '#2da44e' : '#848d97');
+          ctx.fill();
+
+          ctx.fillStyle = prefersDark ? '#e6edf3' : '#1f2328';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(node.label, node.x + 10, node.y + 4);
+        });
+
+        requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    btnToggleGraph.addEventListener('click', () => {
+      isGraphActive = !isGraphActive;
+      graphPanel.style.display = isGraphActive ? 'block' : 'none';
+      btnToggleGraph.textContent = isGraphActive ? 'Hide Map' : 'Node Map';
+      if (isGraphActive) renderGraphTopology();
+    });
+
+    // --- Search Engine & Background Indexer ---
+    function stripMarkdown(md) {
+      return md
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+        .replace(/#{1,6}\s+(.*)/g, '$1')
+        .replace(/[*_~>]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function indexDocument(filePath, markdownText) {
+      const headings = [];
+      const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+      let match;
+      let title = filePath;
+
+      while ((match = headingRegex.exec(markdownText)) !== null) {
+        const text = match[2].trim();
+        if (headings.length === 0 && match[1].length === 1) title = text;
+        headings.push(text);
+      }
+
+      docIndex.set(filePath, {
+        path: filePath,
+        title,
+        headings,
+        text: stripMarkdown(markdownText)
+      });
+      indexedUrls.add(filePath);
+    }
+
+    function discoverAndWarmIndex(activeFile, rootEl) {
+      const links = rootEl.querySelectorAll('a[href$=".md"]');
+      links.forEach(a => {
+        const href = a.getAttribute('href');
+        if (!href || href.startsWith('http')) return;
+
+        const targetPath = resolveRelativePath(href, activeFile);
+        if (!indexedUrls.has(targetPath)) {
+          indexedUrls.add(targetPath);
+
+          const fetcher = async () => {
+            try {
+              const cache = await getDocsCache();
+              let text = '';
+              if (cache) {
+                const cached = await cache.match(targetPath);
+                if (cached) text = await cached.text();
+              }
+              if (!text) {
+                const embedded = getEmbeddedDocument(targetPath);
+                if (embedded) text = embedded;
+              }
+              if (!text) {
+                const res = await fetch(targetPath);
+                if (res.ok) {
+                  text = await res.text();
+                  if (cache) {
+                    await cache.put(targetPath, new Response(text, { headers: { 'Content-Type': 'text/markdown' } }));
+                  }
+                }
+              }
+              if (text) indexDocument(targetPath, text);
+            } catch (_) {}
+          };
+
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(fetcher);
+          } else {
+            setTimeout(fetcher, 200);
+          }
+        }
+      });
+    }
+
+    function highlightMatch(text, term) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+    }
+
+    function searchDocs(query) {
+      const term = query.trim().toLowerCase();
+      if (!term) return [];
+
+      const results = [];
+      for (const [path, doc] of docIndex.entries()) {
+        let score = 0;
+        let snippet = '';
+
+        if (doc.title.toLowerCase().includes(term)) score += 100;
+
+        const matchedHeading = doc.headings.find(h => h.toLowerCase().includes(term));
+        if (matchedHeading) score += 50;
+
+        const bodyIdx = doc.text.toLowerCase().indexOf(term);
+        if (bodyIdx !== -1) {
+          score += 10;
+          const start = Math.max(0, bodyIdx - 40);
+          const end = Math.min(doc.text.length, bodyIdx + term.length + 60);
+          snippet = (start > 0 ? '…' : '') + highlightMatch(doc.text.substring(start, end), term) + (end < doc.text.length ? '…' : '');
+        } else if (matchedHeading) {
+          snippet = `Section: ${highlightMatch(matchedHeading, term)}`;
+        } else {
+          snippet = 'Document title match';
+        }
+
+        if (score > 0) {
+          const headingSlug = matchedHeading ? slugify(matchedHeading) : '';
+          results.push({
+            path,
+            target: headingSlug ? `${path}#${headingSlug}` : path,
+            title: doc.title,
+            snippet,
+            score
+          });
+        }
+      }
+      return results.sort((a, b) => b.score - a.score);
+    }
+
+    // --- Search Modal / Command Palette UI ---
+    const searchModal = document.getElementById('search-modal');
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    const btnSearch = document.getElementById('btn-search');
+    const searchBackdrop = document.getElementById('search-backdrop');
+    const searchCloseBtn = document.getElementById('search-close-btn');
+    let selectedIndex = 0;
+
+    function openSearch() {
+      searchModal.removeAttribute('hidden');
+      searchModal.hidden = false;
+      searchInput.value = '';
+      renderSearchResults([]);
+      setTimeout(() => searchInput.focus(), 20);
+    }
+
+    function closeSearch() {
+      searchModal.setAttribute('hidden', '');
+      searchModal.hidden = true;
+      searchInput.blur();
+    }
+
+    function renderSearchResults(results) {
+      selectedIndex = 0;
+      if (results.length === 0) {
+        searchResults.innerHTML = searchInput.value.trim()
+          ? `<div class="search-empty">No matching documents found</div>`
+          : `<div class="search-empty">Type to search documentation...</div>`;
+        return;
+      }
+
+      searchResults.innerHTML = results.map((item, idx) => `
+        <div class="search-item ${idx === 0 ? 'is-selected' : ''}" data-target="${item.target}">
+          <div class="search-item-header">
+            <span class="search-item-title">${DOMPurify.sanitize(item.title)}</span>
+            <span class="search-item-path">${item.target}</span>
+          </div>
+          <div class="search-item-snippet">${item.snippet}</div>
+        </div>
+      `).join('');
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      renderSearchResults(searchDocs(e.target.value));
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeSearch();
+        return;
+      }
+      const items = searchResults.querySelectorAll('.search-item');
+      if (items.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex + 1) % items.length;
+        updateSelection(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+        updateSelection(items);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const active = items[selectedIndex];
+        if (active) {
+          window.location.hash = active.dataset.target;
+          closeSearch();
+        }
+      }
+    });
+
+    function updateSelection(items) {
+      items.forEach((item, idx) => {
+        item.classList.toggle('is-selected', idx === selectedIndex);
+        if (idx === selectedIndex) item.scrollIntoView({ block: 'nearest' });
+      });
+    }
+
+    searchResults.addEventListener('click', (e) => {
+      const item = e.target.closest('.search-item');
+      if (!item) return;
+      window.location.hash = item.dataset.target;
+      closeSearch();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      const isSearchOpen = !searchModal.hidden && !searchModal.hasAttribute('hidden');
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        isSearchOpen ? closeSearch() : openSearch();
+      } else if (e.key === '/' && !isSearchOpen) {
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+        e.preventDefault();
+        openSearch();
+      } else if (e.key === 'Escape' && isSearchOpen) {
+        e.preventDefault();
+        closeSearch();
+      }
+    });
+
+    btnSearch.addEventListener('click', openSearch);
+    searchBackdrop.addEventListener('click', closeSearch);
+    if (searchCloseBtn) {
+      searchCloseBtn.addEventListener('click', closeSearch);
+    }
+    searchModal.addEventListener('click', (e) => {
+      if (e.target === searchModal || e.target === searchBackdrop) {
+        closeSearch();
+      }
+    });
+
+    // --- Link Interception & Routing Dispatcher ---
+    contentEl.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('mailto:')) return;
+
+      if (href.startsWith('#')) {
+        e.preventDefault();
+        if (href.startsWith('#' + currentPath) || href.startsWith('#/') || href.includes('.md#')) {
+          window.location.hash = href;
+        } else {
+          window.location.hash = `${currentPath || 'index.md'}#${href.slice(1)}`;
+        }
+        return;
+      }
+
+      if (href.includes('.md#')) {
+        e.preventDefault();
+        const [filePart, sectionPart] = href.split('#');
+        window.location.hash = `${resolveRelativePath(filePart, currentPath)}#${sectionPart}`;
+        return;
+      }
+
+      if (href.endsWith('.md')) {
+        e.preventDefault();
+        window.location.hash = resolveRelativePath(href, currentPath);
+      }
+    });
+
+    function parseRoute(hashString) {
+      const clean = hashString.replace(/^#\/?/, '').trim();
+      if (!clean) return { filePath: 'index.md', sectionId: '' };
+
+      const lastHashIdx = clean.lastIndexOf('#');
+      if (lastHashIdx !== -1) {
+        const potentialFile = clean.slice(0, lastHashIdx);
+        const potentialSection = clean.slice(lastHashIdx + 1);
+        if (potentialFile.endsWith('.md')) {
+          return { filePath: potentialFile, sectionId: potentialSection };
+        }
+      }
+
+      if (clean.endsWith('.md')) {
+        return { filePath: clean, sectionId: '' };
+      }
+
+      return { filePath: currentPath || 'index.md', sectionId: clean };
+    }
+
+    async function handleRouting() {
+      const { filePath, sectionId } = parseRoute(window.location.hash);
+
+      if (filePath === currentPath && contentEl.querySelector('h1, h2, h3')) {
+        scrollToSection(sectionId);
+        return;
+      }
+
+      await loadMarkdown(filePath, sectionId);
+    }
+
+    // Warm-up search index with embedded fallback documents
+    document.querySelectorAll('script[type="text/markdown"][id^="doc:"]').forEach(el => {
+      const path = el.id.replace(/^doc:/, '');
+      const text = el.textContent.trim();
+      if (text) {
+        indexDocument(path, text);
+      }
+    });
+
+    window.addEventListener('hashchange', handleRouting);
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', handleRouting);
+    } else {
+      handleRouting();
+    }
+  </script>
+</body>
+</html>
