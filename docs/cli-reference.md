@@ -88,3 +88,100 @@ mcp-jail stats [flags]
 | :--- | :--- | :--- | :--- | :--- |
 | `--session` | | string | `""` | Restrict statistics to a specific session ID |
 | `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail diff`
+
+Displays a unified diff of all file changes captured during an AI agent session.
+
+```bash
+mcp-jail diff [session-id] [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail rollback`
+
+Reverts all file modifications from an AI agent session back to their pre-session snapshot states.
+
+```bash
+mcp-jail rollback [session-id] [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail learn`
+
+Runs an MCP server in permissive learning mode, observing all tool calls, paths, and commands to auto-generate a tailored `.mcp-jail.learned.yaml` security policy.
+
+```bash
+mcp-jail learn [flags] -- <command> [args...]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--output` | `-o` | string | `.mcp-jail.learned.yaml` | Output file for the generated policy YAML |
+| `--config` | `-c` | string | `""` | Base policy configuration file to augment |
+| `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail top`
+
+Launches a live terminal monitor displaying real-time active sessions, tool call streams, policy blocks, and latency metrics.
+
+```bash
+mcp-jail top [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--interval` | `-i` | int | `1` | Dashboard refresh interval in seconds |
+| `--once` | | bool | `false` | Render a single snapshot and exit |
+| `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail proxy`
+
+Runs an HTTP and Server-Sent Events (SSE) reverse proxy to secure remote or cloud-hosted MCP servers.
+
+```bash
+mcp-jail proxy [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--upstream` | `-u` | string | `""` | URL of upstream remote MCP server (required) |
+| `--listen` | `-l` | string | `:8080` | Local address and port to bind |
+| `--config` | `-c` | string | `""` | Path to policy configuration file |
+| `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail version`
+
+Prints the compiled version number, git commit hash, and build date.
+
+```bash
+mcp-jail version
+```

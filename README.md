@@ -108,18 +108,43 @@ Prepend `mcp-jail wrap --` to any MCP server command:
 mcp-jail wrap -- npx -y @modelcontextprotocol/server-filesystem /path/to/workspace
 ```
 
-### 3. Inspect Live Audit Logs
+### 3. Live Activity Monitor
+Open another terminal to watch active MCP sessions, calls, and latency in real time:
+```bash
+mcp-jail top
+```
+
+### 4. Auto-Generate Policies with Learning Mode
+Run an MCP server in learning mode to observe benign behavior and synthesize a least-privilege security policy:
+```bash
+mcp-jail learn -- npx -y @modelcontextprotocol/server-filesystem .
+# Generates .mcp-jail.learned.yaml
+```
+
+### 5. Inspect Changes & Rollback Rogue Modifications
+```bash
+# View unified git-style diff of file modifications made during an agent session
+mcp-jail diff
+
+# Restore files back to pre-session snapshot state
+mcp-jail rollback
+```
+
+### 6. Inspect Audit Logs & Metrics
 ```bash
 # View recent intercepted calls, latency, and redactions
-mcp-jail logs
+mcp-jail logs --tail 20
 
 # Filter for policy violations only
 mcp-jail logs --blocked-only
+
+# View session statistics
+mcp-jail stats
 ```
 
-### 4. View Session Statistics
+### 7. Secure Remote MCP Servers (HTTP / SSE)
 ```bash
-mcp-jail stats
+mcp-jail proxy --listen :8080 --upstream https://mcp.internal.company.com/sse
 ```
 
 ---

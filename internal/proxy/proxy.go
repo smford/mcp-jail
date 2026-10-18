@@ -3,11 +3,14 @@ package proxy
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -17,6 +20,7 @@ import (
 	"github.com/smford/mcp-jail/internal/policy"
 	"github.com/smford/mcp-jail/internal/recorder"
 	"github.com/smford/mcp-jail/internal/scrubber"
+	"github.com/smford/mcp-jail/internal/vault"
 )
 
 const (
@@ -24,6 +28,12 @@ const (
 	MaxLineSize = 16 * 1024 * 1024
 	initBufSize = 64 * 1024
 )
+
+// Learner receives tool invocations to synthesize least-privilege security policies.
+type Learner interface {
+	RecordToolCall(name string, args map[string]interface{})
+	AddTokens(tokens int64)
+}
 
 // Options holds configuration and runtime options for the Proxy.
 type Options struct {
@@ -35,6 +45,7 @@ type Options struct {
 	Args      []string
 	Cwd       string
 	Env       []string
+	Learner   Learner
 
 	// Overridable IO streams (for testing)
 	HostIn  io.Reader
@@ -53,6 +64,7 @@ type Proxy struct {
 	engine   *policy.Engine
 	scrubber *scrubber.Scrubber
 	recorder *recorder.Recorder
+	vault    *vault.Vault
 
 	hostOutMu sync.Mutex
 	hostOut   io.Writer
@@ -111,11 +123,17 @@ func NewProxy(opts Options) (*Proxy, error) {
 		return nil, fmt.Errorf("failed to initialize flight recorder: %w", err)
 	}
 
+	var v *vault.Vault
+	if opts.Config.Vault.Enabled {
+		v = vault.NewVault()
+	}
+
 	return &Proxy{
 		opts:     opts,
 		engine:   engine,
 		scrubber: sc,
 		recorder: rec,
+		vault:    v,
 		hostOut:  opts.HostOut,
 		hostErr:  opts.HostErr,
 		pending:  make(map[string]pendingCall),
@@ -276,6 +294,12 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 			continue
 		}
 
+		// Reversible vault detokenization for incoming requests from host
+		if p.vault != nil {
+			detokenized := p.vault.Detokenize(string(line))
+			line = []byte(detokenized)
+		}
+
 		msg, err := ParseMessage(line)
 		if err != nil {
 			// Not valid JSON-RPC, pass through directly
@@ -292,6 +316,15 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 				continue
 			}
 
+			if p.opts.Learner != nil {
+				p.opts.Learner.RecordToolCall(params.Name, params.Arguments)
+			}
+
+			// Pre-execution file snapshotting for diff & rollback
+			if p.opts.Config.Snapshots.Enabled {
+				p.snapshotFileIfModifying(params.Name, params.Arguments)
+			}
+
 			// Evaluate policy
 			violation := p.engine.EvaluateToolCall(params.Name, params.Arguments)
 			if violation != nil {
@@ -305,7 +338,7 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 				}
 
 				// Log blocked event
-				p.recorder.RecordEvent(&recorder.Event{
+				p.recordEvent(&recorder.Event{
 					SessionID:     p.opts.SessionID,
 					Timestamp:     time.Now(),
 					Direction:     recorder.DirectionHostToServer,
@@ -344,7 +377,7 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 				p.pendingMu.Unlock()
 			}
 
-			p.recorder.RecordEvent(&recorder.Event{
+			p.recordEvent(&recorder.Event{
 				SessionID:     p.opts.SessionID,
 				Timestamp:     time.Now(),
 				Direction:     recorder.DirectionHostToServer,
@@ -390,10 +423,39 @@ func (p *Proxy) pumpServerToHost(r io.Reader) {
 				}
 				p.pendingMu.Unlock()
 			}
+
+			// Inspect sampling/createMessage requests from child server
+			if msg.Method == "sampling/createMessage" {
+				if violation := p.engine.InspectSamplingMessage(msg.Params); violation != nil {
+					p.metricsMu.Lock()
+					p.blockedCalls++
+					p.metricsMu.Unlock()
+
+					p.recordEvent(&recorder.Event{
+						SessionID:     p.opts.SessionID,
+						Timestamp:     time.Now(),
+						Direction:     recorder.DirectionServerToHost,
+						RPCID:         rpcID,
+						Method:        msg.Method,
+						ToolName:      "sampling",
+						Action:        recorder.ActionBlocked,
+						RuleTriggered: violation.RuleName,
+						PayloadJSON:   string(line),
+					})
+					// Drop prompt injection attempt
+					continue
+				}
+			}
 		}
 
-		// Scrub outbound secrets BEFORE forwarding to Host stdout
-		scrubbedBytes, redactions := p.scrubber.Scrub(line)
+		// Scrub outbound secrets BEFORE forwarding to Host stdout (using Vault if enabled)
+		var scrubbedBytes []byte
+		var redactions int
+		if p.vault != nil {
+			scrubbedBytes, redactions = p.scrubber.ScrubWithVault(line, p.vault)
+		} else {
+			scrubbedBytes, redactions = p.scrubber.Scrub(line)
+		}
 
 		// Estimate tokens: len(payload)/4
 		tokens := int64(len(scrubbedBytes)) / 4
@@ -407,13 +469,16 @@ func (p *Proxy) pumpServerToHost(r io.Reader) {
 		p.metricsMu.Unlock()
 
 		_ = p.engine.AddTokens(tokens)
+		if p.opts.Learner != nil {
+			p.opts.Learner.AddTokens(tokens)
+		}
 
 		action := recorder.ActionAllowed
 		if redactions > 0 {
 			action = recorder.ActionRedacted
 		}
 
-		p.recorder.RecordEvent(&recorder.Event{
+		p.recordEvent(&recorder.Event{
 			SessionID:     p.opts.SessionID,
 			Timestamp:     time.Now(),
 			Direction:     recorder.DirectionServerToHost,
@@ -428,6 +493,66 @@ func (p *Proxy) pumpServerToHost(r io.Reader) {
 
 		// Write scrubbed response to Host stdout
 		p.writeHostOut(scrubbedBytes)
+	}
+}
+
+func (p *Proxy) recordEvent(ev *recorder.Event) {
+	p.recorder.RecordEvent(ev)
+	if p.opts.Config.Export.Enabled && p.opts.Config.Export.File != "" {
+		p.exportEvent(ev)
+	}
+}
+
+func (p *Proxy) exportEvent(ev *recorder.Event) {
+	filePath := recorder.ExpandPath(p.opts.Config.Export.File)
+	data, err := json.Marshal(ev)
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		defer f.Close()
+		_, _ = f.Write(append(data, '\n'))
+	}
+}
+
+func (p *Proxy) snapshotFileIfModifying(toolName string, args map[string]interface{}) {
+	var targetPaths []string
+	for k, v := range args {
+		kLower := strings.ToLower(k)
+		if strings.Contains(kLower, "path") || strings.Contains(kLower, "file") || strings.Contains(kLower, "dest") {
+			if strVal, ok := v.(string); ok && strVal != "" {
+				targetPaths = append(targetPaths, strVal)
+			}
+		}
+	}
+
+	maxBytes := int64(p.opts.Config.Snapshots.MaxFileSizeKB) * 1024
+	if maxBytes <= 0 {
+		maxBytes = 512 * 1024
+	}
+
+	for _, relPath := range targetPaths {
+		absPath := relPath
+		if !filepath.IsAbs(absPath) {
+			absPath = filepath.Join(p.opts.Cwd, absPath)
+		}
+		absPath = filepath.Clean(absPath)
+
+		info, err := os.Stat(absPath)
+		if err != nil || info.IsDir() || info.Size() > maxBytes {
+			continue
+		}
+
+		has, err := p.recorder.HasSnapshot(p.opts.SessionID, absPath)
+		if err != nil || has {
+			continue
+		}
+
+		content, err := os.ReadFile(absPath)
+		if err == nil {
+			_ = p.recorder.SaveSnapshot(p.opts.SessionID, absPath, content)
+		}
 	}
 }
 

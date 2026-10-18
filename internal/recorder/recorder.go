@@ -127,6 +127,17 @@ func (r *Recorder) initSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
 	CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
 	CREATE INDEX IF NOT EXISTS idx_events_action ON events(action);
+
+	CREATE TABLE IF NOT EXISTS file_snapshots (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id TEXT NOT NULL,
+		file_path TEXT NOT NULL,
+		snapshot_content BLOB NOT NULL,
+		created_at TIMESTAMP NOT NULL,
+		FOREIGN KEY(session_id) REFERENCES sessions(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_file_snapshots_session ON file_snapshots(session_id);
 	`
 	_, err := r.db.Exec(schema)
 	return err

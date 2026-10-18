@@ -138,11 +138,11 @@ func TestEndToEndProxyWithMockMCPServer(t *testing.T) {
 	if strings.Contains(leakContent, "AKIA"+"IOSFODNN7EXAMPLE") {
 		t.Fatalf("CRITICAL SECURITY LEAK: AWS Key was not scrubbed from stdout: %s", leakContent)
 	}
-	if !strings.Contains(leakContent, "[REDACTED_BY_MCP_JAIL:AWS_KEY]") {
-		t.Errorf("expected REDACTED tag in output, got: %s", leakContent)
+	if !strings.Contains(leakContent, "[REDACTED_BY_MCP_JAIL:AWS_KEY]") && !strings.Contains(leakContent, "{{MCP_VAULT_TOKEN:AWS_KEY_") {
+		t.Errorf("expected REDACTED tag or vault token in output, got: %s", leakContent)
 	}
-	if !strings.Contains(leakContent, "[REDACTED_BY_MCP_JAIL:AWS_SECRET]") {
-		t.Errorf("expected REDACTED AWS_SECRET tag in output, got: %s", leakContent)
+	if !strings.Contains(leakContent, "[REDACTED_BY_MCP_JAIL:AWS_SECRET]") && !strings.Contains(leakContent, "{{MCP_VAULT_TOKEN:AWS_SECRET_") {
+		t.Errorf("expected REDACTED AWS_SECRET tag or vault token in output, got: %s", leakContent)
 	}
 
 	// 6. Test circuit breaker tripping (we've made 4 tool calls: #2, #3, #4, #5)

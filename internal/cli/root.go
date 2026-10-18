@@ -65,5 +65,10 @@ func init() {
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(statsCmd)
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(diffCmd)
+	rootCmd.AddCommand(rollbackCmd)
+	rootCmd.AddCommand(learnCmd)
+	rootCmd.AddCommand(topCmd)
+	rootCmd.AddCommand(proxyCmd)
 	rootCmd.AddCommand(versionCmd)
 }
