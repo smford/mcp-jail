@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -34,9 +35,13 @@ type Engine struct {
 
 	compiledAllowedTools []*regexp.Regexp
 	compiledDeniedTools  []*regexp.Regexp
+	compiledAskTools     []*regexp.Regexp
 	compiledCommands     []*regexp.Regexp
+	compiledAskCommands  []*regexp.Regexp
 	resolvedAllowedRoots []string
 	resolvedDeniedPaths  []string
+
+	approvalHandler ApprovalHandler
 }
 
 // NewEngine constructs a new policy Engine.
@@ -83,6 +88,15 @@ func NewEngine(cfg *config.Config, cwd string) (*Engine, error) {
 		e.compiledDeniedTools = append(e.compiledDeniedTools, re)
 	}
 
+	// Compile approval tools
+	for _, pattern := range append(cfg.Tools.Ask, cfg.Approval.AskTools...) {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ask tool pattern %q: %w", pattern, err)
+		}
+		e.compiledAskTools = append(e.compiledAskTools, re)
+	}
+
 	// Compile command regexes
 	if cfg.Commands.Enabled {
 		for _, pattern := range cfg.Commands.DeniedPatterns {
@@ -91,6 +105,14 @@ func NewEngine(cfg *config.Config, cwd string) (*Engine, error) {
 				return nil, fmt.Errorf("invalid command pattern %q: %w", pattern, err)
 			}
 			e.compiledCommands = append(e.compiledCommands, re)
+		}
+
+		for _, pattern := range append(cfg.Commands.AskPatterns, cfg.Approval.AskCommands...) {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return nil, fmt.Errorf("invalid ask command pattern %q: %w", pattern, err)
+			}
+			e.compiledAskCommands = append(e.compiledAskCommands, re)
 		}
 	}
 
@@ -160,6 +182,79 @@ func (e *Engine) EvaluateToolCall(toolName string, arguments map[string]interfac
 	if e.cfg.Filesystem.Enabled {
 		if v := e.checkFilesystem(arguments); v != nil {
 			return v
+		}
+	}
+
+	// 5. Human-in-the-Loop Interactive Approval
+	if e.cfg.Approval.Enabled {
+		if v := e.checkApproval(toolName, arguments); v != nil {
+			return v
+		}
+	}
+
+	return nil
+}
+
+// SetApprovalHandler configures a custom approval handler.
+func (e *Engine) SetApprovalHandler(h ApprovalHandler) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.approvalHandler = h
+}
+
+func (e *Engine) checkApproval(toolName string, arguments map[string]interface{}) *Violation {
+	needsApproval := false
+	reason := ""
+
+	// Check tool pattern
+	for _, re := range e.compiledAskTools {
+		if re.MatchString(toolName) {
+			needsApproval = true
+			reason = fmt.Sprintf("Tool %q matches approval policy", toolName)
+			break
+		}
+	}
+
+	// Check command pattern
+	if !needsApproval && len(e.compiledAskCommands) > 0 {
+		argsStr := extractStringValues("", arguments)
+		for _, arg := range argsStr {
+			for _, re := range e.compiledAskCommands {
+				if re.MatchString(arg.Value) {
+					needsApproval = true
+					reason = fmt.Sprintf("Command argument matches approval pattern %q", re.String())
+					break
+				}
+			}
+			if needsApproval {
+				break
+			}
+		}
+	}
+
+	if !needsApproval {
+		return nil
+	}
+
+	if e.approvalHandler == nil {
+		e.approvalHandler = NewConsoleApprovalHandler(e.cfg.Approval.TimeoutSec, e.cfg.Approval.NonInteractive)
+	}
+
+	// Unlock while waiting for user interaction
+	e.mu.Unlock()
+	argBytes, _ := json.Marshal(arguments)
+	details := fmt.Sprintf("%s (args: %s)", reason, string(argBytes))
+	approved, err := e.approvalHandler.RequestApproval(context.Background(), toolName, details)
+	e.mu.Lock()
+
+	if !approved {
+		msg := "Tool execution was denied by human user."
+		if err != nil {
+			msg = fmt.Sprintf("Approval failed: %v", err)
+		}
+		return &Violation{
+			RuleName: "human_approval_denied",
+			Reason:   msg,
 		}
 	}
 

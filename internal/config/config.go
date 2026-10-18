@@ -17,6 +17,11 @@ type Config struct {
 	Commands   CommandsConfig   `yaml:"commands"`
 	Limits     LimitsConfig     `yaml:"limits"`
 	Scrubber   ScrubberConfig   `yaml:"scrubber"`
+	Approval   ApprovalConfig   `yaml:"approval"`
+	Vault      VaultConfig      `yaml:"vault"`
+	Sampling   SamplingConfig   `yaml:"sampling"`
+	Snapshots  SnapshotsConfig  `yaml:"snapshots"`
+	Export     ExportConfig     `yaml:"export"`
 }
 
 type SettingsConfig struct {
@@ -27,6 +32,7 @@ type SettingsConfig struct {
 type ToolsConfig struct {
 	Allowed []string `yaml:"allowed"`
 	Denied  []string `yaml:"denied"`
+	Ask     []string `yaml:"ask"`
 }
 
 type FilesystemConfig struct {
@@ -38,6 +44,7 @@ type FilesystemConfig struct {
 type CommandsConfig struct {
 	Enabled        bool     `yaml:"enabled"`
 	DeniedPatterns []string `yaml:"denied_patterns"`
+	AskPatterns    []string `yaml:"ask_patterns"`
 }
 
 type LimitsConfig struct {
@@ -56,6 +63,38 @@ type ScrubberConfig struct {
 type CustomPattern struct {
 	Name  string `yaml:"name"`
 	Regex string `yaml:"regex"`
+}
+
+// ApprovalConfig configures Human-in-the-Loop interactive approvals.
+type ApprovalConfig struct {
+	Enabled        bool     `yaml:"enabled"`
+	TimeoutSec     int      `yaml:"timeout_sec"`
+	NonInteractive bool     `yaml:"non_interactive"`
+	AskTools       []string `yaml:"ask_tools"`
+	AskCommands    []string `yaml:"ask_commands"`
+}
+
+// VaultConfig configures two-way ephemeral secret tokenization.
+type VaultConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+// SamplingConfig configures prompt injection checks on MCP sampling requests.
+type SamplingConfig struct {
+	Enabled         bool `yaml:"enabled"`
+	BlockInjections bool `yaml:"block_injections"`
+}
+
+// SnapshotsConfig configures file modification snapshots for diff & rollback.
+type SnapshotsConfig struct {
+	Enabled       bool `yaml:"enabled"`
+	MaxFileSizeKB int  `yaml:"max_file_size_kb"`
+}
+
+// ExportConfig configures audit event streaming and SIEM export.
+type ExportConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	File    string `yaml:"file"`
 }
 
 // DefaultConfig returns the default strict configuration.
@@ -118,6 +157,28 @@ func DefaultConfig() *Config {
 			RedactPatterns: true,
 			RedactEntropy:  true,
 			CustomPatterns: []CustomPattern{},
+		},
+		Approval: ApprovalConfig{
+			Enabled:        false,
+			TimeoutSec:     30,
+			NonInteractive: false,
+			AskTools:       []string{},
+			AskCommands:    []string{},
+		},
+		Vault: VaultConfig{
+			Enabled: true,
+		},
+		Sampling: SamplingConfig{
+			Enabled:         true,
+			BlockInjections: true,
+		},
+		Snapshots: SnapshotsConfig{
+			Enabled:       true,
+			MaxFileSizeKB: 512,
+		},
+		Export: ExportConfig{
+			Enabled: false,
+			File:    "",
 		},
 	}
 }
@@ -190,6 +251,35 @@ scrubber:
   redact_patterns: true
   redact_entropy: true
   custom_patterns: []
+
+# Human-in-the-Loop Interactive Approval
+approval:
+  enabled: false
+  timeout_sec: 30
+  non_interactive: false
+  # Specific tool regex patterns requiring interactive confirmation
+  ask_tools: []
+  # Specific command regex patterns requiring interactive confirmation
+  ask_commands: []
+
+# Two-Way Ephemeral Secret Vault (Reversible Tokenization)
+vault:
+  enabled: true
+
+# Inbound Prompt Injection & Sampling Guard
+sampling:
+  enabled: true
+  block_injections: true
+
+# File Modification Snapshots (for diff & rollback)
+snapshots:
+  enabled: true
+  max_file_size_kb: 512
+
+# Audit Event Stream & SIEM Export
+export:
+  enabled: false
+  file: ""
 `
 }
 

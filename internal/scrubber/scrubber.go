@@ -100,9 +100,20 @@ func NewScrubber(cfg config.ScrubberConfig) (*Scrubber, error) {
 	return s, nil
 }
 
+// Tokenizer is implemented by vaults that provide reversible secret placeholders.
+type Tokenizer interface {
+	Tokenize(secret string, tag string) string
+}
+
 // Scrub scans content, replaces matches with [REDACTED_BY_MCP_JAIL:<TYPE>],
 // and returns the scrubbed content and count of redactions.
 func (s *Scrubber) Scrub(input []byte) ([]byte, int) {
+	return s.ScrubWithVault(input, nil)
+}
+
+// ScrubWithVault replaces secrets with reversible tokens if a Tokenizer is provided,
+// or with standard redacted placeholders if tokenizer is nil.
+func (s *Scrubber) ScrubWithVault(input []byte, tokenizer Tokenizer) ([]byte, int) {
 	if !s.cfg.Enabled || len(input) == 0 {
 		return input, 0
 	}
@@ -112,7 +123,7 @@ func (s *Scrubber) Scrub(input []byte) ([]byte, int) {
 
 	// 1. Pattern based redactions
 	for _, rule := range s.compiledRules {
-		replacementTag := fmt.Sprintf("[REDACTED_BY_MCP_JAIL:%s]", rule.Tag)
+		defaultReplacement := fmt.Sprintf("[REDACTED_BY_MCP_JAIL:%s]", rule.Tag)
 
 		// Check if matches have capture groups
 		matches := rule.Regex.FindAllStringSubmatchIndex(text, -1)
@@ -125,26 +136,33 @@ func (s *Scrubber) Scrub(input []byte) ([]byte, int) {
 			match := matches[i]
 			redactionCount++
 
+			var secretVal string
+			valStart := match[0]
+			valEnd := match[1]
+
 			// If the pattern has 2 capture groups (e.g. key = value), redact only the value group
 			if len(match) >= 6 && match[4] >= 0 && match[5] >= 0 {
-				valStart := match[4]
-				valEnd := match[5]
-				text = text[:valStart] + replacementTag + text[valEnd:]
+				valStart = match[4]
+				valEnd = match[5]
 			} else if len(match) >= 4 && match[2] >= 0 && match[3] >= 0 {
 				// Single capture group (the secret itself)
-				valStart := match[2]
-				valEnd := match[3]
-				text = text[:valStart] + replacementTag + text[valEnd:]
-			} else {
-				// Full match
-				text = text[:match[0]] + replacementTag + text[match[1]:]
+				valStart = match[2]
+				valEnd = match[3]
 			}
+
+			secretVal = text[valStart:valEnd]
+			replacementTag := defaultReplacement
+			if tokenizer != nil {
+				replacementTag = tokenizer.Tokenize(secretVal, rule.Tag)
+			}
+
+			text = text[:valStart] + replacementTag + text[valEnd:]
 		}
 	}
 
 	// 2. High entropy token detection (if enabled)
 	if s.cfg.RedactEntropy {
-		text, redactionCount = s.scrubHighEntropy(text, redactionCount)
+		text, redactionCount = s.scrubHighEntropy(text, redactionCount, tokenizer)
 	}
 
 	return []byte(text), redactionCount
@@ -152,7 +170,7 @@ func (s *Scrubber) Scrub(input []byte) ([]byte, int) {
 
 var tokenSplitRegex = regexp.MustCompile(`[a-zA-Z0-9_\-\.]{24,}`)
 
-func (s *Scrubber) scrubHighEntropy(text string, count int) (string, int) {
+func (s *Scrubber) scrubHighEntropy(text string, count int, tokenizer Tokenizer) (string, int) {
 	// Look for long contiguous alphanumeric tokens that might be uncaptured high-entropy keys
 	matches := tokenSplitRegex.FindAllStringIndex(text, -1)
 	if len(matches) == 0 {
@@ -164,7 +182,7 @@ func (s *Scrubber) scrubHighEntropy(text string, count int) (string, int) {
 		token := text[start:end]
 
 		// Skip if already redacted or if all same char
-		if strings.Contains(token, "REDACTED_BY_MCP_JAIL") {
+		if strings.Contains(token, "REDACTED_BY_MCP_JAIL") || strings.Contains(token, "MCP_VAULT_TOKEN") {
 			continue
 		}
 
@@ -174,6 +192,9 @@ func (s *Scrubber) scrubHighEntropy(text string, count int) (string, int) {
 		if len(token) >= 28 && entropy >= 4.6 {
 			// Avoid pure numbers or repeated structures
 			tag := "[REDACTED_BY_MCP_JAIL:HIGH_ENTROPY]"
+			if tokenizer != nil {
+				tag = tokenizer.Tokenize(token, "HIGH_ENTROPY")
+			}
 			text = text[:start] + tag + text[end:]
 			count++
 		}
