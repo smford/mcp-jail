@@ -3,6 +3,7 @@
 [![Go Version](https://img.shields.io/badge/go-1.23%2B-blue.svg)](https://golang.org)
 [![Pure Go](https://img.shields.io/badge/pure--Go-standalone_binary-success.svg)](https://golang.org)
 [![Documentation](https://img.shields.io/badge/docs-GitHub_Pages-blue.svg)](https://smford.github.io/mcp-jail/)
+[![Release](https://img.shields.io/github/v/release/smford/mcp-jail?color=blue)](https://github.com/smford/mcp-jail/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 `mcp-jail` is a lightweight security proxy and flight recorder for the **Model Context Protocol (MCP)**. It acts as a safety guard between your AI coding agents (such as Claude Code, Cursor, Antigravity, and Claude Desktop) and the MCP servers running on your machine.
@@ -295,6 +296,59 @@ Prints an audit trail of tool invocations, policy blocks, and credential redacti
 Displays cumulative metrics, token estimates, and top tools invoked.
 - `--session <id>`: Filter stats for a specific session.
 - `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
+### `mcp-jail diff [flags]`
+Displays a git-style unified diff of all file modifications and creations made during an agent session.
+- `--session <id>`: Filter diff by session ID (default: latest active session).
+- `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
+### `mcp-jail rollback [flags]`
+Safely restores modified and deleted files back to their pre-session snapshot state.
+- `--session <id>`: Session ID to rollback (default: latest active session).
+- `-f, --force`: Bypass confirmation prompt and execute rollback immediately.
+- `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
+### `mcp-jail learn [flags] -- <command> [args...]`
+Runs an MCP server in observation mode to passively monitor tool calls and auto-generate a tailored, least-privilege security policy.
+- `-o, --output <path>`: Output policy file path (default: `.mcp-jail.learned.yaml`).
+- `--duration <duration>`: Maximum learning observation time (e.g. `10m`, `1h`).
+
+### `mcp-jail top [flags]`
+Opens an interactive real-time terminal dashboard (TUI) displaying active MCP sessions, calls per minute, latency gauges, and recent policy blocks.
+- `--interval <duration>`: Refresh rate interval (default: `1s`).
+- `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
+### `mcp-jail proxy [flags]`
+Runs a transparent HTTP / Server-Sent Events (SSE) reverse proxy to protect remote and cloud-hosted MCP servers.
+- `--listen <addr>`: Local listening address and port (default: `:8080`).
+- `--upstream <url>`: Upstream remote MCP server endpoint URL.
+- `-c, --config <path>`: Path to `.mcp-jail.yaml` policy file.
+
+### `mcp-jail serve [flags]`
+Runs an HTTP daemon providing health checks, Prometheus-compatible telemetry metrics, and JSON endpoints.
+- `--listen <addr>`: HTTP daemon address (default: `:9090`).
+- `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
+### `mcp-jail install <client>`
+Automatically wraps configured MCP servers in popular AI desktop agents.
+- Supported clients: `claude` (Claude Desktop), `cursor` (Cursor IDE), `windsurf` (Windsurf IDE).
+- `--dry-run`: Preview configuration changes without writing to disk.
+
+### `mcp-jail uninstall <client>`
+Restores original unwrapped MCP server commands in target AI desktop configurations.
+- Supported clients: `claude`, `cursor`, `windsurf`.
+
+### `mcp-jail test-policy [flags]`
+Dry-runs and simulates policy evaluation against arbitrary tool calls, resource paths, or prompt injections without executing commands.
+- `-c, --config <path>`: Path to policy configuration file.
+- `--tool <name>`: Tool name to test.
+- `--args <json>`: JSON arguments payload to evaluate.
+
+### `mcp-jail lint-policy <file>`
+Statically checks a policy YAML file for security anti-patterns, dangerous wildcards, overlapping rules, or missing safeguards.
+
+### `mcp-jail version`
+Prints the compiled version number, git commit hash, and build date.
 
 ---
 
