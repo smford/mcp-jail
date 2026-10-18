@@ -42,10 +42,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e3ea1c73c5cb355e7dd9e76ca4615e # v3.8.1
+        uses: sigstore/cosign-installer@053f9b74638557590800a301da1ba82351507e2c # v3.8.1
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@90a3140cf054c8fb808a89346031140f7dd56788 # v6.2.1
+        uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
           distribution: goreleaser
           version: '~> v2'

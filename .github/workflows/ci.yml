@@ -123,7 +123,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Check GoReleaser configuration
-        uses: goreleaser/goreleaser-action@90a3140cf054c8fb808a89346031140f7dd56788 # v6.2.1
+        uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
           version: '~> v2'
           args: check
