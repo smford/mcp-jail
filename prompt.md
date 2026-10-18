@@ -1,7 +1,7 @@
 You are a Principal Go Systems Engineer and Security Architect. Your task is to design, implement, and test `mcp-jail`, a single-binary, zero-CGO local firewall and flight-recorder proxy for Model Context Protocol (MCP) servers and terminal AI coding agents.
 
 ### 1. Problem & Core Architecture
-AI coding agents (Claude Code, Antigravity, OpenCode, Cursor) execute MCP servers as local subprocesses communicating via line-delimited JSON-RPC 2.0 over `stdin` and `stdout`. 
+AI coding agents (Claude Code, Antigravity, OpenCode, Cursor) execute MCP servers as local subprocesses communicating via line-delimited JSON-RPC 2.0 over `stdin` and `stdout`.
 `mcp-jail` sits transparently between the Host Agent and the Target MCP Server:
 [AI Host Agent] <--(stdio JSON-RPC)--> [mcp-jail] <--(stdio JSON-RPC)--> [Target MCP Server]
 

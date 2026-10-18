@@ -56,7 +56,7 @@ scrubber:
   enabled: true
   redact_patterns: true
   redact_entropy: true
-  
+
   # Custom regex patterns
   custom_patterns:
     - name: "Internal DB Password"

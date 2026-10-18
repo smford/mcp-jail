@@ -6,7 +6,7 @@ A high-performance, single-binary, zero-CGO local firewall and flight-recorder p
 
 ## Overview
 
-AI coding agents (such as Claude Code, Antigravity, Cursor, and OpenCode) execute MCP servers as local subprocesses communicating via line-delimited JSON-RPC 2.0 over `stdin` and `stdout`. 
+AI coding agents (such as Claude Code, Antigravity, Cursor, and OpenCode) execute MCP servers as local subprocesses communicating via line-delimited JSON-RPC 2.0 over `stdin` and `stdout`.
 
 `mcp-jail` sits transparently between the Host Agent and the Target MCP Server to enforce security boundaries, prevent catastrophic command execution, prevent runaway token loops, and redact outbound credentials before they enter the LLM context window.
 

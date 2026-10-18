@@ -32,7 +32,7 @@ tools:
     - "^read_file$"
     - "^list_directory$"
     - "^git_status$"
-  
+
   # Denied tools are always blocked
   denied:
     - "^format_disk$"
@@ -52,12 +52,12 @@ Prevents directory traversal, symlink escapes, and access to sensitive files.
 ```yaml
 filesystem:
   enabled: true
-  
+
   # Paths are resolved against working directory
   # Access outside allowed roots is blocked
   allowed_roots:
     - "."
-  
+
   # Glob patterns denied even inside allowed roots
   denied_paths:
     - "**/.env*"
@@ -111,10 +111,10 @@ Prevents runaway agent loops and unexpected token billing spikes:
 limits:
   # Max tool calls allowed within any sliding 60-second window
   max_tool_calls_per_minute: 60
-  
+
   # Maximum cumulative tool calls permitted per session
   max_total_calls_per_session: 100
-  
+
   # Maximum estimated response tokens before tripping circuit breaker
   max_session_tokens: 500000
 ```

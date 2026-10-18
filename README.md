@@ -123,7 +123,7 @@ make docs-serve
 
 ### 1. Claude Desktop (`claude_desktop_config.json`)
 
-On macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+On macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 On Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
