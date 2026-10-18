@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/smford/mcp-jail/internal/alert"
 	"github.com/smford/mcp-jail/internal/config"
 	"github.com/smford/mcp-jail/internal/policy"
 	"github.com/smford/mcp-jail/internal/proxy"
+	"github.com/smford/mcp-jail/internal/ratelimit"
 	"github.com/smford/mcp-jail/internal/recorder"
 	"github.com/smford/mcp-jail/internal/scrubber"
 	"github.com/smford/mcp-jail/internal/vault"
@@ -27,6 +29,8 @@ type Server struct {
 	scrubber    *scrubber.Scrubber
 	recorder    *recorder.Recorder
 	vault       *vault.Vault
+	limiter     *ratelimit.Limiter
+	alerts      *alert.Dispatcher
 	sessionID   string
 	httpClient  *http.Client
 }
@@ -48,6 +52,9 @@ func NewServer(upstreamURL string, cfg *config.Config, rec *recorder.Recorder) (
 		v = vault.NewVault()
 	}
 
+	lmt := ratelimit.NewLimiter(cfg.Limits)
+	alt := alert.NewDispatcher(cfg.Alerts)
+
 	sessID := uuid.New().String()
 	_ = rec.StartSession(&recorder.Session{
 		ID:        sessID,
@@ -63,6 +70,8 @@ func NewServer(upstreamURL string, cfg *config.Config, rec *recorder.Recorder) (
 		scrubber:    sc,
 		recorder:    rec,
 		vault:       v,
+		limiter:     lmt,
+		alerts:      alt,
 		sessionID:   sessID,
 		httpClient:  &http.Client{Timeout: 60 * time.Second},
 	}, nil
@@ -151,23 +160,123 @@ func (s *Server) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg, err := proxy.ParseMessage(body)
-	if err == nil && msg.Method == "tools/call" {
-		params, parseErr := msg.ParseToolCallParams()
-		if parseErr == nil {
-			violation := s.engine.EvaluateToolCall(params.Name, params.Arguments)
-			if violation != nil {
+	if err == nil {
+		if msg.Method == "tools/call" {
+			params, parseErr := msg.ParseToolCallParams()
+			if parseErr == nil {
+				// Rate limit check
+				if s.limiter != nil {
+					if limErr := s.limiter.RecordToolCall(params.Name); limErr != nil {
+						s.alerts.Dispatch(alert.Event{
+							Type:      "rate_limit_exceeded",
+							SessionID: s.sessionID,
+							Tool:      params.Name,
+							Reason:    limErr.Error(),
+						})
+						ruleName := "rate_limit_exceeded"
+						if le, ok := limErr.(*ratelimit.LimitError); ok {
+							ruleName = le.RuleName
+						}
+
+						s.recorder.RecordEvent(&recorder.Event{
+							SessionID:     s.sessionID,
+							Timestamp:     time.Now(),
+							Direction:     recorder.DirectionHostToServer,
+							RPCID:         msg.IDString(),
+							Method:        msg.Method,
+							ToolName:      params.Name,
+							Action:        recorder.ActionBlocked,
+							RuleTriggered: ruleName,
+							PayloadJSON:   string(body),
+						})
+						blockedResp, _ := policy.CreateBlockedResponse(msg.ID, ruleName, limErr.Error())
+						w.Header().Set("Content-Type", "application/json")
+						_, _ = w.Write(append(blockedResp, '\n'))
+						return
+					}
+				}
+
+				violation := s.engine.EvaluateToolCall(params.Name, params.Arguments)
+				if violation != nil {
+					s.alerts.Dispatch(alert.Event{
+						Type:      "policy_violation",
+						SessionID: s.sessionID,
+						Tool:      params.Name,
+						Reason:    violation.Reason,
+					})
+					s.recorder.RecordEvent(&recorder.Event{
+						SessionID:     s.sessionID,
+						Timestamp:     time.Now(),
+						Direction:     recorder.DirectionHostToServer,
+						RPCID:         msg.IDString(),
+						Method:        msg.Method,
+						ToolName:      params.Name,
+						Action:        recorder.ActionBlocked,
+						RuleTriggered: violation.RuleName,
+						PayloadJSON:   string(body),
+					})
+
+					blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write(append(blockedResp, '\n'))
+					return
+				}
+			}
+		}
+
+		if msg.Method == "resources/read" || msg.Method == "resources/subscribe" {
+			var rParams struct {
+				URI string `json:"uri"`
+			}
+			_ = json.Unmarshal(msg.Params, &rParams)
+			if violation := s.engine.EvaluateResource(rParams.URI); violation != nil {
+				s.alerts.Dispatch(alert.Event{
+					Type:      "policy_violation",
+					SessionID: s.sessionID,
+					Tool:      msg.Method,
+					Reason:    violation.Reason,
+				})
 				s.recorder.RecordEvent(&recorder.Event{
 					SessionID:     s.sessionID,
 					Timestamp:     time.Now(),
 					Direction:     recorder.DirectionHostToServer,
 					RPCID:         msg.IDString(),
 					Method:        msg.Method,
-					ToolName:      params.Name,
+					ToolName:      "resource:" + rParams.URI,
 					Action:        recorder.ActionBlocked,
 					RuleTriggered: violation.RuleName,
 					PayloadJSON:   string(body),
 				})
+				blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(append(blockedResp, '\n'))
+				return
+			}
+		}
 
+		if msg.Method == "prompts/get" {
+			var prParams struct {
+				Name string `json:"name"`
+			}
+			_ = json.Unmarshal(msg.Params, &prParams)
+			if violation := s.engine.EvaluatePrompt(prParams.Name); violation != nil {
+				s.alerts.Dispatch(alert.Event{
+					Type:      "policy_violation",
+					SessionID: s.sessionID,
+					Tool:      msg.Method,
+					Reason:    violation.Reason,
+				})
+				s.recorder.RecordEvent(&recorder.Event{
+					SessionID:     s.sessionID,
+					Timestamp:     time.Now(),
+					Direction:     recorder.DirectionHostToServer,
+					RPCID:         msg.IDString(),
+					Method:        msg.Method,
+					ToolName:      "prompt:" + prParams.Name,
+					Action:        recorder.ActionBlocked,
+					RuleTriggered: violation.RuleName,
+					PayloadJSON:   string(body),
+				})
 				blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write(append(blockedResp, '\n'))

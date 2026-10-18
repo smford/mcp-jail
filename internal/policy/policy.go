@@ -33,13 +33,15 @@ type Engine struct {
 	totalCalls     int
 	sessionTokens  int64
 
-	compiledAllowedTools []*regexp.Regexp
-	compiledDeniedTools  []*regexp.Regexp
-	compiledAskTools     []*regexp.Regexp
-	compiledCommands     []*regexp.Regexp
-	compiledAskCommands  []*regexp.Regexp
-	resolvedAllowedRoots []string
-	resolvedDeniedPaths  []string
+	compiledAllowedTools   []*regexp.Regexp
+	compiledDeniedTools    []*regexp.Regexp
+	compiledAskTools       []*regexp.Regexp
+	compiledCommands       []*regexp.Regexp
+	compiledAskCommands    []*regexp.Regexp
+	compiledAllowedPrompts []*regexp.Regexp
+	compiledDeniedPrompts  []*regexp.Regexp
+	resolvedAllowedRoots   []string
+	resolvedDeniedPaths    []string
 
 	approvalHandler ApprovalHandler
 }
@@ -131,6 +133,24 @@ func NewEngine(cfg *config.Config, cwd string) (*Engine, error) {
 		for _, p := range cfg.Filesystem.DeniedPaths {
 			exp := e.expandHome(p)
 			e.resolvedDeniedPaths = append(e.resolvedDeniedPaths, exp)
+		}
+	}
+
+	// Compile prompts regexes
+	if cfg.Prompts.Enabled {
+		for _, pattern := range cfg.Prompts.Allowed {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return nil, fmt.Errorf("invalid allowed prompt pattern %q: %w", pattern, err)
+			}
+			e.compiledAllowedPrompts = append(e.compiledAllowedPrompts, re)
+		}
+		for _, pattern := range cfg.Prompts.Denied {
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return nil, fmt.Errorf("invalid denied prompt pattern %q: %w", pattern, err)
+			}
+			e.compiledDeniedPrompts = append(e.compiledDeniedPrompts, re)
 		}
 	}
 
@@ -554,4 +574,87 @@ func extractStringValues(prefix string, obj interface{}) []keyVal {
 	}
 
 	return result
+}
+
+// EvaluateResource checks an MCP resource URI against allowed and denied patterns.
+func (e *Engine) EvaluateResource(uri string) *Violation {
+	if !e.cfg.Resources.Enabled {
+		return nil
+	}
+
+	cleanURI := strings.TrimSpace(uri)
+
+	// 1. Check against denied URI patterns
+	for _, pattern := range e.cfg.Resources.DeniedURIs {
+		if match, _ := doublestar.Match(pattern, cleanURI); match {
+			return &Violation{
+				RuleName: "resource_boundary",
+				Reason:   fmt.Sprintf("Resource URI %q is denied by pattern %q", cleanURI, pattern),
+			}
+		}
+		// Also support string prefix or simple glob
+		if strings.HasPrefix(cleanURI, pattern) {
+			return &Violation{
+				RuleName: "resource_boundary",
+				Reason:   fmt.Sprintf("Resource URI %q is denied by prefix %q", cleanURI, pattern),
+			}
+		}
+	}
+
+	// 2. Check against allowed URIs (if configured)
+	if len(e.cfg.Resources.AllowedURIs) > 0 {
+		allowed := false
+		for _, pattern := range e.cfg.Resources.AllowedURIs {
+			if match, _ := doublestar.Match(pattern, cleanURI); match || strings.HasPrefix(cleanURI, pattern) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return &Violation{
+				RuleName: "resource_boundary",
+				Reason:   fmt.Sprintf("Resource URI %q is not in the allowed URIs list", cleanURI),
+			}
+		}
+	}
+
+	return nil
+}
+
+// EvaluatePrompt checks an MCP prompt name against allowed and denied prompt patterns.
+func (e *Engine) EvaluatePrompt(name string) *Violation {
+	if !e.cfg.Prompts.Enabled {
+		return nil
+	}
+
+	cleanName := strings.TrimSpace(name)
+
+	// 1. Check against denied prompt regexes
+	for _, re := range e.compiledDeniedPrompts {
+		if re.MatchString(cleanName) {
+			return &Violation{
+				RuleName: "prompt_boundary",
+				Reason:   fmt.Sprintf("Prompt %q is denied by pattern %q", cleanName, re.String()),
+			}
+		}
+	}
+
+	// 2. Check against allowed prompt regexes (if configured)
+	if len(e.compiledAllowedPrompts) > 0 {
+		allowed := false
+		for _, re := range e.compiledAllowedPrompts {
+			if re.MatchString(cleanName) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return &Violation{
+				RuleName: "prompt_boundary",
+				Reason:   fmt.Sprintf("Prompt %q is not in the allowed prompts list", cleanName),
+			}
+		}
+	}
+
+	return nil
 }

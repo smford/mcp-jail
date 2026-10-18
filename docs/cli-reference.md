@@ -11,11 +11,21 @@ Usage:
   mcp-jail [command]
 
 Available Commands:
-  init        Generate default .mcp-jail.yaml security policy configuration
-  wrap        Wrap and monitor an MCP server command with security boundaries
-  logs        View flight recorder audit trail of tool calls and policy blocks
-  stats       Print session metrics, policy violations, and token estimates
-  help        Help about any command
+  init         Generate default .mcp-jail.yaml security policy configuration
+  wrap         Wrap and monitor an MCP server command with security boundaries
+  logs         View flight recorder audit trail of tool calls and policy blocks
+  stats        Print session metrics, policy violations, and token estimates
+  diff         Display unified diff of file mutations from an agent session
+  rollback     Revert file changes from an agent session to pre-execution state
+  learn        Auto-generate security policy by observing server behavior
+  top          Interactive terminal monitor of active sessions and metrics
+  proxy        Run HTTP/SSE reverse proxy for remote MCP servers
+  install      Configure AI clients (Claude, Cursor, Windsurf) to wrap servers
+  uninstall    Unwrap and restore original MCP server configurations
+  test-policy  Simulate and test policy decisions for tools, resources, and prompts
+  lint-policy  Audit a policy YAML file for dangerous patterns and misconfigurations
+  version      Print version number and build metadata
+  help         Help about any command
 ```
 
 ---
@@ -52,6 +62,7 @@ mcp-jail wrap [flags] -- <command> [args...]
 | `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
 | `--session-id` | | string | Auto UUID | Identifier for the recording session |
 | `--dry-run` | | bool | `false` | Evaluate and log policy violations without blocking calls |
+| `--isolate` | | bool | `false` | Enable OS-level subprocess sandboxing (sandbox-exec on macOS, bwrap on Linux) |
 
 ---
 
@@ -175,6 +186,76 @@ mcp-jail proxy [flags]
 | `--listen` | `-l` | string | `:8080` | Local address and port to bind |
 | `--config` | `-c` | string | `""` | Path to policy configuration file |
 | `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail install`
+
+Automatically configures AI client configuration files (Claude Desktop, Cursor, Windsurf) to wrap configured MCP servers with `mcp-jail`. Creates an automatic backup file (`.mcp-jail.bak`) before modifying the config.
+
+```bash
+mcp-jail install <client> [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--server` | | string | `""` | Wrap only a specific server name (defaults to all servers) |
+| `--path` | | string | `""` | Custom path to client configuration file |
+
+---
+
+## `mcp-jail uninstall`
+
+Restores original MCP server commands by removing the `mcp-jail` wrapper from client configuration files.
+
+```bash
+mcp-jail uninstall <client> [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--server` | | string | `""` | Unwrap only a specific server name (defaults to all servers) |
+| `--path` | | string | `""` | Custom path to client configuration file |
+
+---
+
+## `mcp-jail test-policy`
+
+Simulates security policy evaluation without running an active MCP server. Validates tool permissions, path boundaries, resource URIs, or prompt templates.
+
+```bash
+mcp-jail test-policy [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--config` | `-c` | string | `""` | Path to `.mcp-jail.yaml` policy configuration |
+| `--tool` | | string | `""` | Tool name to test (e.g. `bash`, `write_file`) |
+| `--args` | | string | `""` | JSON string of tool arguments (e.g. `'{"path": "/etc/passwd"}'`) |
+| `--resource` | | string | `""` | Resource URI to test (e.g. `file:///etc/shadow`) |
+| `--prompt` | | string | `""` | Prompt template name to test |
+
+---
+
+## `mcp-jail lint-policy`
+
+Statically audits an `.mcp-jail.yaml` policy file for security anti-patterns, overly broad allowed roots, disabled scrubbers, or evasion vectors.
+
+```bash
+mcp-jail lint-policy [file] [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--config` | `-c` | string | `""` | Path to `.mcp-jail.yaml` configuration file |
 
 ---
 

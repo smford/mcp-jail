@@ -15,6 +15,7 @@ var (
 	wrapDB        string
 	wrapSessionID string
 	wrapDryRun    bool
+	wrapIsolate   bool
 )
 
 var wrapCmd = &cobra.Command{
@@ -39,6 +40,9 @@ Enforces firewall policies, redacts credentials, and logs all events to SQLite.`
 
 		if wrapDryRun {
 			cfg.Settings.DryRun = true
+		}
+		if wrapIsolate {
+			cfg.Sandbox.Enabled = true
 		}
 
 		targetCmd := args[0]
@@ -78,4 +82,5 @@ func init() {
 	wrapCmd.Flags().StringVar(&wrapDB, "db", "~/.mcp-jail/flight-recorder.db", "Path to SQLite flight recorder database")
 	wrapCmd.Flags().StringVar(&wrapSessionID, "session-id", "", "Custom session identifier (default: generated UUID)")
 	wrapCmd.Flags().BoolVar(&wrapDryRun, "dry-run", false, "Log violations to flight recorder without blocking calls")
+	wrapCmd.Flags().BoolVar(&wrapIsolate, "isolate", false, "Enable OS-level subprocess sandboxing (sandbox-exec on macOS, bwrap on Linux)")
 }

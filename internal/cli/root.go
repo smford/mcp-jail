@@ -70,5 +70,9 @@ func init() {
 	rootCmd.AddCommand(learnCmd)
 	rootCmd.AddCommand(topCmd)
 	rootCmd.AddCommand(proxyCmd)
+	rootCmd.AddCommand(installCmd)
+	rootCmd.AddCommand(uninstallCmd)
+	rootCmd.AddCommand(testPolicyCmd)
+	rootCmd.AddCommand(lintPolicyCmd)
 	rootCmd.AddCommand(versionCmd)
 }

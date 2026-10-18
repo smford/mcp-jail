@@ -22,6 +22,10 @@ type Config struct {
 	Sampling   SamplingConfig   `yaml:"sampling"`
 	Snapshots  SnapshotsConfig  `yaml:"snapshots"`
 	Export     ExportConfig     `yaml:"export"`
+	Resources  ResourcesConfig  `yaml:"resources"`
+	Prompts    PromptsConfig    `yaml:"prompts"`
+	Sandbox    SandboxConfig    `yaml:"sandbox"`
+	Alerts     AlertsConfig     `yaml:"alerts"`
 }
 
 type SettingsConfig struct {
@@ -48,9 +52,17 @@ type CommandsConfig struct {
 }
 
 type LimitsConfig struct {
-	MaxToolCallsPerMinute   int   `yaml:"max_tool_calls_per_minute"`
-	MaxTotalCallsPerSession int   `yaml:"max_total_calls_per_session"`
-	MaxSessionTokens        int64 `yaml:"max_session_tokens"`
+	MaxToolCallsPerMinute   int                   `yaml:"max_tool_calls_per_minute"`
+	MaxTotalCallsPerSession int                   `yaml:"max_total_calls_per_session"`
+	MaxSessionTokens        int64                 `yaml:"max_session_tokens"`
+	ToolLimits              []ToolRateLimitConfig `yaml:"tool_limits"`
+}
+
+// ToolRateLimitConfig configures fine-grained sliding-window limits for a specific tool.
+type ToolRateLimitConfig struct {
+	Tool         string `yaml:"tool"`
+	MaxPerMinute int    `yaml:"max_per_minute"`
+	MaxPerHour   int    `yaml:"max_per_hour"`
 }
 
 type ScrubberConfig struct {
@@ -95,6 +107,34 @@ type SnapshotsConfig struct {
 type ExportConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	File    string `yaml:"file"`
+}
+
+// ResourcesConfig configures access rules for MCP resources/read and resources/subscribe.
+type ResourcesConfig struct {
+	Enabled     bool     `yaml:"enabled"`
+	AllowedURIs []string `yaml:"allowed_uris"`
+	DeniedURIs  []string `yaml:"denied_uris"`
+}
+
+// PromptsConfig configures access rules for MCP prompts/get.
+type PromptsConfig struct {
+	Enabled bool     `yaml:"enabled"`
+	Allowed []string `yaml:"allowed"`
+	Denied  []string `yaml:"denied"`
+}
+
+// SandboxConfig configures OS-level subprocess sandboxing (e.g. bwrap or sandbox-exec).
+type SandboxConfig struct {
+	Enabled        bool `yaml:"enabled"`
+	IsolateNetwork bool `yaml:"isolate_network"`
+	ReadOnlyRoot   bool `yaml:"read_only_root"`
+}
+
+// AlertsConfig configures real-time webhook notifications for security events.
+type AlertsConfig struct {
+	Enabled    bool     `yaml:"enabled"`
+	WebhookURL string   `yaml:"webhook_url"`
+	Events     []string `yaml:"events"`
 }
 
 // DefaultConfig returns the default strict configuration.
@@ -180,6 +220,35 @@ func DefaultConfig() *Config {
 			Enabled: false,
 			File:    "",
 		},
+		Resources: ResourcesConfig{
+			Enabled:     true,
+			AllowedURIs: []string{},
+			DeniedURIs: []string{
+				"file:///etc/**",
+				"**/.env*",
+				"**/*id_rsa*",
+			},
+		},
+		Prompts: PromptsConfig{
+			Enabled: true,
+			Allowed: []string{},
+			Denied:  []string{},
+		},
+		Sandbox: SandboxConfig{
+			Enabled:        false,
+			IsolateNetwork: false,
+			ReadOnlyRoot:   false,
+		},
+		Alerts: AlertsConfig{
+			Enabled:    false,
+			WebhookURL: "",
+			Events: []string{
+				"policy_violation",
+				"approval_denied",
+				"prompt_injection_detected",
+				"rate_limit_exceeded",
+			},
+		},
 	}
 }
 
@@ -244,6 +313,11 @@ limits:
   max_tool_calls_per_minute: 60
   max_total_calls_per_session: 100
   max_session_tokens: 500000
+  # Fine-grained limits per tool (sliding window)
+  tool_limits: []
+  # - tool: "execute_sql"
+  #   max_per_minute: 5
+  #   max_per_hour: 20
 
 # Outbound Secret Scrubber (Response Filter)
 scrubber:
@@ -280,6 +354,37 @@ snapshots:
 export:
   enabled: false
   file: ""
+
+# MCP Resources Access Control (resources/read, resources/subscribe)
+resources:
+  enabled: true
+  allowed_uris: []
+  denied_uris:
+    - "file:///etc/**"
+    - "**/.env*"
+    - "**/*id_rsa*"
+
+# MCP Prompts Access Control (prompts/get)
+prompts:
+  enabled: true
+  allowed: []
+  denied: []
+
+# OS-Level Subprocess Sandboxing (macOS sandbox-exec, Linux bwrap)
+sandbox:
+  enabled: false
+  isolate_network: false
+  read_only_root: false
+
+# Real-Time Security Alerts (Webhooks for Slack/Discord/SIEM)
+alerts:
+  enabled: false
+  webhook_url: ""
+  events:
+    - "policy_violation"
+    - "approval_denied"
+    - "prompt_injection_detected"
+    - "rate_limit_exceeded"
 `
 }
 

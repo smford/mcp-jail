@@ -96,32 +96,49 @@ make build
 
 ## Quick Start
 
-### 1. Initialize Configuration
+### 1. One-Click AI Client Setup
+Automatically configure Claude Desktop, Cursor, or Windsurf to wrap all their configured MCP servers with `mcp-jail`:
+```bash
+mcp-jail install claude     # Configures Claude Desktop
+mcp-jail install cursor     # Configures Cursor IDE
+mcp-jail install windsurf   # Configures Windsurf IDE
+```
+
+### 2. Initialize Configuration
 Generate a strict default `.mcp-jail.yaml` in your project root:
 ```bash
 mcp-jail init
 ```
 
-### 2. Wrap Any MCP Server
-Prepend `mcp-jail wrap --` to any MCP server command:
+### 3. Wrap Any MCP Server
+Prepend `mcp-jail wrap --` to any MCP server command. Use `--isolate` to activate OS-level sandbox containerization:
 ```bash
-mcp-jail wrap -- npx -y @modelcontextprotocol/server-filesystem /path/to/workspace
+mcp-jail wrap --isolate -- npx -y @modelcontextprotocol/server-filesystem /path/to/workspace
 ```
 
-### 3. Live Activity Monitor
+### 4. Test & Lint Security Policies
+```bash
+# Verify policy decisions without running an active MCP server
+mcp-jail test-policy --tool write_file --args '{"path": "/etc/passwd"}'
+
+# Statically audit a policy YAML for security anti-patterns
+mcp-jail lint-policy .mcp-jail.yaml
+```
+
+### 5. Live Activity Monitor
 Open another terminal to watch active MCP sessions, calls, and latency in real time:
 ```bash
 mcp-jail top
 ```
 
-### 4. Auto-Generate Policies with Learning Mode
+### 6. Auto-Generate Policies with Learning Mode
 Run an MCP server in learning mode to observe benign behavior and synthesize a least-privilege security policy:
 ```bash
 mcp-jail learn -- npx -y @modelcontextprotocol/server-filesystem .
 # Generates .mcp-jail.learned.yaml
 ```
 
-### 5. Inspect Changes & Rollback Rogue Modifications
+### 7. Inspect Changes & Rollback Rogue Modifications
 ```bash
 # View unified git-style diff of file modifications made during an agent session
 mcp-jail diff
@@ -130,7 +147,7 @@ mcp-jail diff
 mcp-jail rollback
 ```
 
-### 6. Inspect Audit Logs & Metrics
+### 8. Inspect Audit Logs & Metrics
 ```bash
 # View recent intercepted calls, latency, and redactions
 mcp-jail logs --tail 20
@@ -142,9 +159,14 @@ mcp-jail logs --blocked-only
 mcp-jail stats
 ```
 
-### 7. Secure Remote MCP Servers (HTTP / SSE)
+### 9. Secure Remote MCP Servers (HTTP / SSE)
 ```bash
 mcp-jail proxy --listen :8080 --upstream https://mcp.internal.company.com/sse
+```
+
+### 10. Run via Docker
+```bash
+docker run --rm -p 8080:8080 ghcr.io/smford/mcp-jail:latest proxy --listen :8080 --upstream https://remote-mcp.internal/sse
 ```
 
 ---

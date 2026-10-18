@@ -1,24 +1,31 @@
-# Multi-stage production Dockerfile for mcp-jail
-FROM golang:1.26-alpine AS builder
+# Multi-stage Dockerfile for mcp-jail
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
 
 WORKDIR /src
-
-# Download dependencies
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Build standalone statically linked pure-Go binary
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/mcp-jail ./cmd/mcp-jail
 
-# Minimal scratch runtime using distroless static nonroot
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+ARG COMMIT=none
+ARG DATE=unknown
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
+    -trimpath \
+    -ldflags="-s -w -X github.com/smford/mcp-jail/internal/cli.version=${VERSION} -X github.com/smford/mcp-jail/internal/cli.commit=${COMMIT} -X github.com/smford/mcp-jail/internal/cli.date=${DATE}" \
+    -o /mcp-jail ./cmd/mcp-jail
+
+# Final distroless nonroot image
 FROM gcr.io/distroless/static-debian12:nonroot
+
 WORKDIR /
-
-COPY --from=builder /bin/mcp-jail /usr/local/bin/mcp-jail
-
-USER nonroot:nonroot
+COPY --from=builder /mcp-jail /usr/local/bin/mcp-jail
 
 EXPOSE 8080
+USER nonroot:nonroot
+
 ENTRYPOINT ["/usr/local/bin/mcp-jail"]
-CMD ["--help"]
+CMD ["proxy", "--help"]

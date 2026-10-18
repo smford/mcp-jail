@@ -16,9 +16,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/smford/mcp-jail/internal/alert"
 	"github.com/smford/mcp-jail/internal/config"
 	"github.com/smford/mcp-jail/internal/policy"
+	"github.com/smford/mcp-jail/internal/ratelimit"
 	"github.com/smford/mcp-jail/internal/recorder"
+	"github.com/smford/mcp-jail/internal/sandbox"
 	"github.com/smford/mcp-jail/internal/scrubber"
 	"github.com/smford/mcp-jail/internal/vault"
 )
@@ -60,11 +63,14 @@ type pendingCall struct {
 
 // Proxy coordinates bidirectional stdio inspection between the host agent and MCP server.
 type Proxy struct {
-	opts     Options
-	engine   *policy.Engine
-	scrubber *scrubber.Scrubber
-	recorder *recorder.Recorder
-	vault    *vault.Vault
+	opts          Options
+	engine        *policy.Engine
+	scrubber      *scrubber.Scrubber
+	recorder      *recorder.Recorder
+	vault         *vault.Vault
+	limiter       *ratelimit.Limiter
+	alerts        *alert.Dispatcher
+	sandboxDriver sandbox.Driver
 
 	hostOutMu sync.Mutex
 	hostOut   io.Writer
@@ -128,15 +134,22 @@ func NewProxy(opts Options) (*Proxy, error) {
 		v = vault.NewVault()
 	}
 
+	lmt := ratelimit.NewLimiter(opts.Config.Limits)
+	alt := alert.NewDispatcher(opts.Config.Alerts)
+	sbDriver := sandbox.NewDriver(opts.Config.Sandbox)
+
 	return &Proxy{
-		opts:     opts,
-		engine:   engine,
-		scrubber: sc,
-		recorder: rec,
-		vault:    v,
-		hostOut:  opts.HostOut,
-		hostErr:  opts.HostErr,
-		pending:  make(map[string]pendingCall),
+		opts:          opts,
+		engine:        engine,
+		scrubber:      sc,
+		recorder:      rec,
+		vault:         v,
+		limiter:       lmt,
+		alerts:        alt,
+		sandboxDriver: sbDriver,
+		hostOut:       opts.HostOut,
+		hostErr:       opts.HostErr,
+		pending:       make(map[string]pendingCall),
 	}, nil
 }
 
@@ -159,7 +172,16 @@ func (p *Proxy) Run(ctx context.Context) (int, error) {
 	}
 
 	// Prepare child process
-	child := exec.CommandContext(ctx, p.opts.Command, p.opts.Args...)
+	var child *exec.Cmd
+	if p.opts.Config.Sandbox.Enabled && p.sandboxDriver != nil {
+		var wrapErr error
+		child, wrapErr = p.sandboxDriver.WrapCommand(ctx, p.opts.Command, p.opts.Args, p.opts.Config.Sandbox, p.opts.Config.Filesystem.AllowedRoots)
+		if wrapErr != nil {
+			child = exec.CommandContext(ctx, p.opts.Command, p.opts.Args...)
+		}
+	} else {
+		child = exec.CommandContext(ctx, p.opts.Command, p.opts.Args...)
+	}
 	child.Dir = p.opts.Cwd
 	if len(p.opts.Env) > 0 {
 		child.Env = append(os.Environ(), p.opts.Env...)
@@ -307,13 +329,52 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 			continue
 		}
 
-		// Only inspect tools/call method requests
+		// 1. Inspect tools/call
 		if msg.Method == "tools/call" {
 			params, parseErr := msg.ParseToolCallParams()
 			if parseErr != nil {
 				// Malformed params, pass through
 				_, _ = childIn.Write(append(line, '\n'))
 				continue
+			}
+
+			// Check fine-grained rate limit
+			if p.limiter != nil {
+				if limErr := p.limiter.RecordToolCall(params.Name); limErr != nil {
+					p.metricsMu.Lock()
+					p.blockedCalls++
+					p.metricsMu.Unlock()
+
+					p.alerts.Dispatch(alert.Event{
+						Type:      "rate_limit_exceeded",
+						SessionID: p.opts.SessionID,
+						Tool:      params.Name,
+						Reason:    limErr.Error(),
+					})
+
+					ruleName := "rate_limit_exceeded"
+					if le, ok := limErr.(*ratelimit.LimitError); ok {
+						ruleName = le.RuleName
+					}
+
+					p.recordEvent(&recorder.Event{
+						SessionID:     p.opts.SessionID,
+						Timestamp:     time.Now(),
+						Direction:     recorder.DirectionHostToServer,
+						RPCID:         msg.IDString(),
+						Method:        msg.Method,
+						ToolName:      params.Name,
+						Action:        recorder.ActionBlocked,
+						RuleTriggered: ruleName,
+						PayloadJSON:   string(line),
+					})
+
+					if !p.opts.DryRun {
+						blockedResp, _ := policy.CreateBlockedResponse(msg.ID, ruleName, limErr.Error())
+						p.writeHostOut(blockedResp)
+						continue
+					}
+				}
 			}
 
 			if p.opts.Learner != nil {
@@ -331,6 +392,13 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 				p.metricsMu.Lock()
 				p.blockedCalls++
 				p.metricsMu.Unlock()
+
+				p.alerts.Dispatch(alert.Event{
+					Type:      "policy_violation",
+					SessionID: p.opts.SessionID,
+					Tool:      params.Name,
+					Reason:    violation.Reason,
+				})
 
 				ruleName := violation.RuleName
 				if p.opts.DryRun {
@@ -390,6 +458,82 @@ func (p *Proxy) pumpHostToServer(r io.Reader, childIn io.Writer) {
 			})
 		}
 
+		// 2. Inspect resources/read and resources/subscribe
+		if msg.Method == "resources/read" || msg.Method == "resources/subscribe" {
+			var rParams struct {
+				URI string `json:"uri"`
+			}
+			_ = json.Unmarshal(msg.Params, &rParams)
+			if violation := p.engine.EvaluateResource(rParams.URI); violation != nil {
+				p.metricsMu.Lock()
+				p.blockedCalls++
+				p.metricsMu.Unlock()
+
+				p.alerts.Dispatch(alert.Event{
+					Type:      "policy_violation",
+					SessionID: p.opts.SessionID,
+					Tool:      msg.Method,
+					Reason:    violation.Reason,
+				})
+
+				p.recordEvent(&recorder.Event{
+					SessionID:     p.opts.SessionID,
+					Timestamp:     time.Now(),
+					Direction:     recorder.DirectionHostToServer,
+					RPCID:         msg.IDString(),
+					Method:        msg.Method,
+					ToolName:      "resource:" + rParams.URI,
+					Action:        recorder.ActionBlocked,
+					RuleTriggered: violation.RuleName,
+					PayloadJSON:   string(line),
+				})
+
+				if !p.opts.DryRun {
+					blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+					p.writeHostOut(blockedResp)
+					continue
+				}
+			}
+		}
+
+		// 3. Inspect prompts/get
+		if msg.Method == "prompts/get" {
+			var prParams struct {
+				Name string `json:"name"`
+			}
+			_ = json.Unmarshal(msg.Params, &prParams)
+			if violation := p.engine.EvaluatePrompt(prParams.Name); violation != nil {
+				p.metricsMu.Lock()
+				p.blockedCalls++
+				p.metricsMu.Unlock()
+
+				p.alerts.Dispatch(alert.Event{
+					Type:      "policy_violation",
+					SessionID: p.opts.SessionID,
+					Tool:      msg.Method,
+					Reason:    violation.Reason,
+				})
+
+				p.recordEvent(&recorder.Event{
+					SessionID:     p.opts.SessionID,
+					Timestamp:     time.Now(),
+					Direction:     recorder.DirectionHostToServer,
+					RPCID:         msg.IDString(),
+					Method:        msg.Method,
+					ToolName:      "prompt:" + prParams.Name,
+					Action:        recorder.ActionBlocked,
+					RuleTriggered: violation.RuleName,
+					PayloadJSON:   string(line),
+				})
+
+				if !p.opts.DryRun {
+					blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+					p.writeHostOut(blockedResp)
+					continue
+				}
+			}
+		}
+
 		// Forward to child MCP server
 		_, _ = childIn.Write(append(line, '\n'))
 	}
@@ -431,6 +575,13 @@ func (p *Proxy) pumpServerToHost(r io.Reader) {
 					p.blockedCalls++
 					p.metricsMu.Unlock()
 
+					p.alerts.Dispatch(alert.Event{
+						Type:      "prompt_injection_detected",
+						SessionID: p.opts.SessionID,
+						Tool:      "sampling/createMessage",
+						Reason:    violation.Reason,
+					})
+
 					p.recordEvent(&recorder.Event{
 						SessionID:     p.opts.SessionID,
 						Timestamp:     time.Now(),
@@ -469,6 +620,9 @@ func (p *Proxy) pumpServerToHost(r io.Reader) {
 		p.metricsMu.Unlock()
 
 		_ = p.engine.AddTokens(tokens)
+		if p.limiter != nil {
+			_ = p.limiter.RecordTokens(tokens)
+		}
 		if p.opts.Learner != nil {
 			p.opts.Learner.AddTokens(tokens)
 		}
