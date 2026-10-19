@@ -8,9 +8,11 @@ import (
 )
 
 var (
-	version = "0.2.0"
-	commit  = "none"
-	date    = "unknown"
+	version   = "0.3.0"
+	commit    = "none"
+	date      = "unknown"
+	copyright = "Copyright (c) 2026 smford"
+	license   = "MIT License"
 )
 
 var rootCmd = &cobra.Command{
@@ -26,14 +28,46 @@ and local MCP servers to:
   • Stop runaway loops and surprise bills with rate and token budget limiters
   • Provide a complete, queryable flight recorder of every tool call and blocked action
 
-Built as a pure Go standalone binary with no external C dependencies or runtime installations required.`,
+Built as a pure Go standalone binary with no external C dependencies or runtime installations required.
+
+` + copyright + `. Licensed under the ` + license + `.`,
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version number and build metadata of mcp-jail",
+	Short: "Print the version, copyright, and license information of mcp-jail",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("mcp-jail %s (commit: %s, date: %s)\n", version, commit, date)
+		fmt.Printf("%s\n", copyright)
+		fmt.Printf("Licensed under the %s\n", license)
+	},
+}
+
+var licenseCmd = &cobra.Command{
+	Use:   "license",
+	Short: "Print copyright and full license terms of mcp-jail",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("mcp-jail %s\n", version)
+		fmt.Printf("%s\n\n", copyright)
+		fmt.Println(`MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`)
 	},
 }
 
@@ -48,7 +82,7 @@ func SetVersion(v, c, d string) {
 	if d != "" {
 		date = d
 	}
-	rootCmd.Version = fmt.Sprintf("%s (commit: %s, date: %s)", version, commit, date)
+	rootCmd.Version = fmt.Sprintf("%s (commit: %s, date: %s)\n%s\nLicensed under the %s", version, commit, date, copyright, license)
 }
 
 // Execute runs the root CLI command.
@@ -60,6 +94,8 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Version = fmt.Sprintf("%s (commit: %s, date: %s)\n%s\nLicensed under the %s", version, commit, date, copyright, license)
+
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(wrapCmd)
 	rootCmd.AddCommand(logsCmd)
@@ -75,4 +111,5 @@ func init() {
 	rootCmd.AddCommand(testPolicyCmd)
 	rootCmd.AddCommand(lintPolicyCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(licenseCmd)
 }

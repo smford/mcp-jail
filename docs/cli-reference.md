@@ -24,7 +24,8 @@ Available Commands:
   uninstall    Unwrap and restore original MCP server configurations
   test-policy  Simulate and test policy decisions for tools, resources, and prompts
   lint-policy  Audit a policy YAML file for dangerous patterns and misconfigurations
-  version      Print version number and build metadata
+  version      Print version, copyright, and license information
+  license      Print copyright and full license terms
   help         Help about any command
 ```
 
@@ -261,8 +262,18 @@ mcp-jail lint-policy [file] [flags]
 
 ## `mcp-jail version`
 
-Prints the compiled version number, git commit hash, and build date.
+Prints the compiled version number, build metadata, copyright, and license information.
 
 ```bash
 mcp-jail version
+```
+
+---
+
+## `mcp-jail license`
+
+Prints the copyright notice and full text of the open-source MIT License.
+
+```bash
+mcp-jail license
 ```
