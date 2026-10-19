@@ -117,6 +117,11 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	upstreamReq.Header.Set("Accept", "text/event-stream")
+	for k, v := range r.Header {
+		if strings.EqualFold(k, "Authorization") || strings.HasPrefix(strings.ToLower(k), "x-") {
+			upstreamReq.Header[k] = v
+		}
+	}
 
 	resp, err := s.httpClient.Do(upstreamReq)
 	if err != nil {
@@ -292,6 +297,12 @@ func (s *Server) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	upstreamReq.Header.Set("Content-Type", "application/json")
+	upstreamReq.Header.Set("Accept", "application/json")
+	for k, v := range r.Header {
+		if strings.EqualFold(k, "Authorization") || strings.HasPrefix(strings.ToLower(k), "x-") {
+			upstreamReq.Header[k] = v
+		}
+	}
 
 	resp, err := s.httpClient.Do(upstreamReq)
 	if err != nil {

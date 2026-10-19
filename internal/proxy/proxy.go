@@ -2,10 +2,12 @@ package proxy
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -49,6 +51,9 @@ type Options struct {
 	Cwd       string
 	Env       []string
 	Learner   Learner
+
+	RemoteURL string            // Upstream HTTP URL for remote MCP server (bridge mode)
+	Headers   map[string]string // HTTP headers for upstream requests
 
 	// Overridable IO streams (for testing)
 	HostIn  io.Reader
@@ -155,6 +160,10 @@ func NewProxy(opts Options) (*Proxy, error) {
 
 // Run executes the child MCP process and intercepts stdio streams until completion.
 func (p *Proxy) Run(ctx context.Context) (int, error) {
+	if p.opts.RemoteURL != "" {
+		return p.RunRemote(ctx)
+	}
+
 	cmdStr := p.opts.Command
 	if len(p.opts.Args) > 0 {
 		cmdStr = fmt.Sprintf("%s %v", p.opts.Command, p.opts.Args)
@@ -714,4 +723,230 @@ func (p *Proxy) writeHostOut(data []byte) {
 	p.hostOutMu.Lock()
 	defer p.hostOutMu.Unlock()
 	_, _ = p.hostOut.Write(append(data, '\n'))
+}
+
+// RunRemote runs a stdio-to-HTTP JSON-RPC bridge for remote MCP servers.
+func (p *Proxy) RunRemote(ctx context.Context) (int, error) {
+	cmdStr := "remote -> " + p.opts.RemoteURL
+
+	err := p.recorder.StartSession(&recorder.Session{
+		ID:        p.opts.SessionID,
+		StartedAt: time.Now(),
+		Command:   cmdStr,
+		Cwd:       p.opts.Cwd,
+	})
+	if err != nil {
+		fmt.Fprintf(p.hostErr, "[mcp-jail] warning: failed to start session in flight recorder: %v\n", err)
+	}
+
+	httpClient := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	scanner := bufio.NewScanner(p.opts.HostIn)
+	buf := make([]byte, initBufSize)
+	scanner.Buffer(buf, MaxLineSize)
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+
+		if p.vault != nil {
+			detokenized := p.vault.Detokenize(string(line))
+			line = []byte(detokenized)
+		}
+
+		msg, parseErr := ParseMessage(line)
+		if parseErr == nil {
+			if msg.Method == "tools/call" {
+				params, err := msg.ParseToolCallParams()
+				if err == nil {
+					// Check rate limits
+					if p.limiter != nil {
+						if limErr := p.limiter.RecordToolCall(params.Name); limErr != nil {
+							p.alerts.Dispatch(alert.Event{
+								Type:      "rate_limit_exceeded",
+								SessionID: p.opts.SessionID,
+								Tool:      params.Name,
+								Reason:    limErr.Error(),
+							})
+							ruleName := "rate_limit_exceeded"
+							if le, ok := limErr.(*ratelimit.LimitError); ok {
+								ruleName = le.RuleName
+							}
+							p.recordEvent(&recorder.Event{
+								SessionID:     p.opts.SessionID,
+								Timestamp:     time.Now(),
+								Direction:     recorder.DirectionHostToServer,
+								RPCID:         msg.IDString(),
+								Method:        msg.Method,
+								ToolName:      params.Name,
+								Action:        recorder.ActionBlocked,
+								RuleTriggered: ruleName,
+								PayloadJSON:   string(line),
+							})
+							blockedResp, _ := policy.CreateBlockedResponse(msg.ID, ruleName, limErr.Error())
+							p.writeHostOut(blockedResp)
+							continue
+						}
+					}
+
+					// Evaluate security policy
+					violation := p.engine.EvaluateToolCall(params.Name, params.Arguments)
+					if violation != nil {
+						p.alerts.Dispatch(alert.Event{
+							Type:      "policy_violation",
+							SessionID: p.opts.SessionID,
+							Tool:      params.Name,
+							Reason:    violation.Reason,
+						})
+						p.recordEvent(&recorder.Event{
+							SessionID:     p.opts.SessionID,
+							Timestamp:     time.Now(),
+							Direction:     recorder.DirectionHostToServer,
+							RPCID:         msg.IDString(),
+							Method:        msg.Method,
+							ToolName:      params.Name,
+							Action:        recorder.ActionBlocked,
+							RuleTriggered: violation.RuleName,
+							PayloadJSON:   string(line),
+						})
+						blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+						p.writeHostOut(blockedResp)
+						continue
+					}
+				}
+			}
+
+			if msg.Method == "resources/read" {
+				var rParams struct {
+					URI string `json:"uri"`
+				}
+				_ = json.Unmarshal(msg.Params, &rParams)
+				if violation := p.engine.EvaluateResource(rParams.URI); violation != nil {
+					p.alerts.Dispatch(alert.Event{
+						Type:      "policy_violation",
+						SessionID: p.opts.SessionID,
+						Tool:      msg.Method,
+						Reason:    violation.Reason,
+					})
+					p.recordEvent(&recorder.Event{
+						SessionID:     p.opts.SessionID,
+						Timestamp:     time.Now(),
+						Direction:     recorder.DirectionHostToServer,
+						RPCID:         msg.IDString(),
+						Method:        msg.Method,
+						ToolName:      "resource:" + rParams.URI,
+						Action:        recorder.ActionBlocked,
+						RuleTriggered: violation.RuleName,
+						PayloadJSON:   string(line),
+					})
+					blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+					p.writeHostOut(blockedResp)
+					continue
+				}
+			}
+
+			if msg.Method == "prompts/get" {
+				var prParams struct {
+					Name string `json:"name"`
+				}
+				_ = json.Unmarshal(msg.Params, &prParams)
+				if violation := p.engine.EvaluatePrompt(prParams.Name); violation != nil {
+					p.alerts.Dispatch(alert.Event{
+						Type:      "policy_violation",
+						SessionID: p.opts.SessionID,
+						Tool:      msg.Method,
+						Reason:    violation.Reason,
+					})
+					p.recordEvent(&recorder.Event{
+						SessionID:     p.opts.SessionID,
+						Timestamp:     time.Now(),
+						Direction:     recorder.DirectionHostToServer,
+						RPCID:         msg.IDString(),
+						Method:        msg.Method,
+						ToolName:      "prompt:" + prParams.Name,
+						Action:        recorder.ActionBlocked,
+						RuleTriggered: violation.RuleName,
+						PayloadJSON:   string(line),
+					})
+					blockedResp, _ := policy.CreateBlockedResponse(msg.ID, violation.RuleName, violation.Reason)
+					p.writeHostOut(blockedResp)
+					continue
+				}
+			}
+		}
+
+		// Forward request to remote MCP server over HTTP POST
+		startTime := time.Now()
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.opts.RemoteURL, bytes.NewReader(line))
+		if err != nil {
+			if msg != nil && msg.ID != nil {
+				errResp := fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"error":{"code":-32603,"message":%q}}`, msg.IDString(), err.Error())
+				p.writeHostOut([]byte(errResp))
+			}
+			continue
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		for k, v := range p.opts.Headers {
+			req.Header.Set(k, v)
+		}
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			if msg != nil && msg.ID != nil {
+				errResp := fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"error":{"code":-32603,"message":"upstream connection error: %s"}}`, msg.IDString(), err.Error())
+				p.writeHostOut([]byte(errResp))
+			}
+			continue
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		latencyMs := time.Since(startTime).Milliseconds()
+
+		if msg != nil && msg.ID != nil {
+			var scrubbed []byte
+			var redactions int
+			if p.vault != nil {
+				scrubbed, redactions = p.scrubber.ScrubWithVault(respBody, p.vault)
+			} else {
+				scrubbed, redactions = p.scrubber.Scrub(respBody)
+			}
+
+			action := recorder.ActionAllowed
+			if redactions > 0 {
+				action = recorder.ActionRedacted
+			}
+
+			p.recordEvent(&recorder.Event{
+				SessionID:   p.opts.SessionID,
+				Timestamp:   time.Now(),
+				Direction:   recorder.DirectionServerToHost,
+				RPCID:       msg.IDString(),
+				Method:      msg.Method,
+				Action:      action,
+				LatencyMs:   latencyMs,
+				PayloadJSON: string(scrubbed),
+			})
+
+			p.writeHostOut(scrubbed)
+		}
+	}
+
+	p.metricsMu.Lock()
+	tc := p.totalCalls
+	bc := p.blockedCalls
+	rs := p.redactedSecrets
+	et := p.estTokens
+	p.metricsMu.Unlock()
+
+	p.recorder.EndSession(p.opts.SessionID, tc, bc, rs, et)
+	p.closeRecorder()
+
+	return 0, scanner.Err()
 }

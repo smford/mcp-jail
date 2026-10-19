@@ -215,14 +215,38 @@ func installSingle(cfgPath, serverFilter, client string) (*InstallResult, error)
 
 		// Check for remote URL servers (serverUrl or url)
 		if origCmd == "" {
-			if _, hasURL := sMap["serverUrl"]; hasURL {
-				res.Skipped = append(res.Skipped, sName+" (remote serverUrl)")
+			var remoteURL string
+			if u, hasURL := sMap["serverUrl"].(string); hasURL && u != "" {
+				remoteURL = u
+			} else if u, hasURL := sMap["url"].(string); hasURL && u != "" {
+				remoteURL = u
+			}
+
+			if remoteURL != "" {
+				wrapArgs := []string{"wrap", "--remote", remoteURL}
+				if headersMap, ok := sMap["headers"].(map[string]interface{}); ok {
+					for hName, hVal := range headersMap {
+						if hStr, ok := hVal.(string); ok {
+							wrapArgs = append(wrapArgs, "--header", fmt.Sprintf("%s: %s", hName, hStr))
+						}
+					}
+				}
+
+				// Preserve original remote config for uninstall restoration
+				sMap["_original_serverUrl"] = remoteURL
+				if h, hasHeaders := sMap["headers"]; hasHeaders {
+					sMap["_original_headers"] = h
+					delete(sMap, "headers")
+				}
+				delete(sMap, "serverUrl")
+				delete(sMap, "url")
+
+				sMap["command"] = "mcp-jail"
+				sMap["args"] = wrapArgs
+				res.Wrapped = append(res.Wrapped, sName+" (remote "+remoteURL+")")
 				continue
 			}
-			if _, hasURL := sMap["url"]; hasURL {
-				res.Skipped = append(res.Skipped, sName+" (remote url)")
-				continue
-			}
+
 			res.Skipped = append(res.Skipped, sName+" (no command defined)")
 			continue
 		}
@@ -329,6 +353,20 @@ func uninstallSingle(cfgPath, serverFilter, client string) (*UninstallResult, er
 		cmd, _ := sMap["command"].(string)
 		if cmd != "mcp-jail" {
 			res.Skipped = append(res.Skipped, sName)
+			continue
+		}
+
+		// Restore remote server if it was wrapped with --remote
+		if origURL, ok := sMap["_original_serverUrl"].(string); ok && origURL != "" {
+			sMap["serverUrl"] = origURL
+			delete(sMap, "_original_serverUrl")
+			if origH, hasH := sMap["_original_headers"]; hasH {
+				sMap["headers"] = origH
+				delete(sMap, "_original_headers")
+			}
+			delete(sMap, "command")
+			delete(sMap, "args")
+			res.Unwrapped = append(res.Unwrapped, sName+" (restored remote "+origURL+")")
 			continue
 		}
 
@@ -477,15 +515,27 @@ func listServersFromConfig(cfgPath, clientName string) ([]*ServerInfo, error) {
 
 		if cmd == "mcp-jail" {
 			info.Status = "Protected"
-			targetCmd, targetArgs := extractTargetFromWrap(args)
-			if targetCmd != "" {
-				if len(targetArgs) > 0 {
-					info.Target = targetCmd + " " + strings.Join(targetArgs, " ")
-				} else {
-					info.Target = targetCmd
+			// Check if wrapping a remote URL via --remote
+			var remoteURL string
+			for i, a := range args {
+				if a == "--remote" && i+1 < len(args) {
+					remoteURL = args[i+1]
+					break
 				}
+			}
+			if remoteURL != "" {
+				info.Target = remoteURL + " (remote)"
 			} else {
-				info.Target = "mcp-jail " + strings.Join(args, " ")
+				targetCmd, targetArgs := extractTargetFromWrap(args)
+				if targetCmd != "" {
+					if len(targetArgs) > 0 {
+						info.Target = targetCmd + " " + strings.Join(targetArgs, " ")
+					} else {
+						info.Target = targetCmd
+					}
+				} else {
+					info.Target = "mcp-jail " + strings.Join(args, " ")
+				}
 			}
 		} else if cmd != "" {
 			info.Status = "Unprotected"
@@ -495,7 +545,7 @@ func listServersFromConfig(cfgPath, clientName string) ([]*ServerInfo, error) {
 				info.Target = cmd
 			}
 		} else if serverURL != "" {
-			info.Status = "Remote URL"
+			info.Status = "Unprotected (Remote URL)"
 			info.Target = serverURL
 		} else {
 			info.Status = "Empty"

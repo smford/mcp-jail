@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/smford/mcp-jail/internal/integrations"
@@ -67,14 +68,14 @@ Supported clients for filtering:
 		for _, s := range servers {
 			clientSet[s.Client] = true
 			statusDisplay := s.Status
-			switch s.Status {
-			case "Protected":
+			switch {
+			case s.Status == "Protected":
 				protectedCount++
 				statusDisplay = "✓ Protected"
-			case "Unprotected":
+			case strings.HasPrefix(s.Status, "Unprotected"):
 				unprotectedCount++
-				statusDisplay = "! Unprotected"
-			case "Remote URL":
+				statusDisplay = "! " + s.Status
+			case s.Status == "Remote URL":
 				remoteCount++
 				statusDisplay = "• Remote URL"
 			}

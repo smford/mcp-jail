@@ -299,11 +299,14 @@ Generates a default `.mcp-jail.yaml` in the current working directory.
 - `-f, --force`: Overwrite existing configuration file.
 
 ### `mcp-jail wrap [flags] -- <command> [args...]`
-Transparently proxies stdin and stdout of the target MCP server command.
+Transparently proxies stdin and stdout of the target MCP server command or remote HTTP endpoint.
+- `--remote <url>`: URL of upstream remote MCP server to bridge via stdio.
+- `--header <header>`: Custom HTTP header for upstream requests (e.g. `--header 'Authorization: Bearer xxx'`).
 - `-c, --config <path>`: Path to `.mcp-jail.yaml` (default: `.mcp-jail.yaml` in current directory).
 - `--db <path>`: Path to SQLite flight recorder database (default: `~/.mcp-jail/flight-recorder.db`).
 - `--session-id <string>`: Custom session identifier (default: auto-generated UUID).
 - `--dry-run`: Evaluate and log policy violations without blocking requests.
+- `--isolate`: Activate OS-level sandbox containerization.
 
 ### `mcp-jail logs [flags]`
 Prints an audit trail of tool invocations, policy blocks, and credential redactions.

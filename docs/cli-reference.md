@@ -50,16 +50,22 @@ mcp-jail init [flags]
 
 ## `mcp-jail wrap`
 
-Proxies standard I/O streams of the target MCP server command, enforcing firewall policies and scrubbing outbound credentials.
+Proxies standard I/O streams of the target MCP server command or remote HTTP endpoint, enforcing firewall policies and scrubbing outbound credentials.
 
 ```bash
+# Wrap a local command:
 mcp-jail wrap [flags] -- <command> [args...]
+
+# Bridge a remote HTTP / SSE server via stdio:
+mcp-jail wrap [flags] --remote <url> [--header "Header: Value"]...
 ```
 
 ### Flags
 
 | Flag | Short | Type | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
+| `--remote` | | string | `""` | URL of upstream remote MCP server to bridge via stdio |
+| `--header` | | string | `""` | Custom HTTP header for upstream requests (can be specified multiple times) |
 | `--config` | `-c` | string | `""` | Path to `.mcp-jail.yaml` (defaults to current directory) |
 | `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
 | `--session-id` | | string | Auto UUID | Identifier for the recording session |

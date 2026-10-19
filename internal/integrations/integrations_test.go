@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -42,11 +43,11 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
 	}
 	res := results[0]
 
-	if len(res.Wrapped) != 2 {
-		t.Fatalf("expected 2 wrapped servers, got %d", len(res.Wrapped))
+	if len(res.Wrapped) != 3 {
+		t.Fatalf("expected 3 wrapped servers (including remote), got %d: %v", len(res.Wrapped), res.Wrapped)
 	}
-	if len(res.Skipped) != 1 {
-		t.Fatalf("expected 1 skipped remote server, got %d", len(res.Skipped))
+	if len(res.Skipped) != 0 {
+		t.Fatalf("expected 0 skipped servers, got %d: %v", len(res.Skipped), res.Skipped)
 	}
 
 	// Verify backup exists
@@ -70,6 +71,10 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
 	if sqlite["command"] != "mcp-jail" {
 		t.Errorf("expected command 'mcp-jail', got %s", sqlite["command"])
 	}
+	remoteSvc := servers["remote_service"].(map[string]interface{})
+	if remoteSvc["command"] != "mcp-jail" {
+		t.Errorf("expected command 'mcp-jail' for remote_service, got %s", remoteSvc["command"])
+	}
 
 	// Idempotency: calling Install again should skip already wrapped servers
 	results2, err := Install("claude", "", configPath)
@@ -87,8 +92,8 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
 	unres := unresults[0]
-	if len(unres.Unwrapped) != 2 {
-		t.Fatalf("expected 2 unwrapped servers, got %d", len(unres.Unwrapped))
+	if len(unres.Unwrapped) != 3 {
+		t.Fatalf("expected 3 unwrapped servers, got %d: %v", len(unres.Unwrapped), unres.Unwrapped)
 	}
 
 	// Verify restored command
@@ -187,8 +192,8 @@ func TestIntegrations_ListServers(t *testing.T) {
 	}
 
 	remote := serverMap["remote-tool"]
-	if remote == nil || remote.Status != "Remote URL" {
-		t.Errorf("expected remote-tool to be Remote URL, got %+v", remote)
+	if remote == nil || !strings.Contains(remote.Status, "Remote URL") {
+		t.Errorf("expected remote-tool to have Remote URL in status, got %+v", remote)
 	}
 	if remote.Target != "https://api.example.com/mcp" {
 		t.Errorf("expected target 'https://api.example.com/mcp', got %q", remote.Target)

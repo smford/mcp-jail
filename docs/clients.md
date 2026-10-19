@@ -132,7 +132,24 @@ In your Antigravity MCP configuration file (`mcp_config.json`):
 }
 ```
 
-> **Note**: Remote MCP servers configured with `serverUrl` or `url` (such as Home Assistant) are automatically detected and safely skipped without modification.
+### Remote MCP Servers (e.g. Home Assistant)
+`mcp-jail install antigravity` also automatically wraps remote HTTP/SSE endpoints (such as Home Assistant) by configuring a stdio bridge with `--remote`:
+
+```json
+{
+  "mcpServers": {
+    "homeassistant": {
+      "command": "mcp-jail",
+      "args": [
+        "wrap",
+        "--remote", "http://192.168.1.139:8123/api/mcp",
+        "--header", "Authorization: Bearer <token>"
+      ]
+    }
+  }
+}
+```
+This requires no background daemons or port allocations, and enforces full security policies, audit logging, and secret scrubbing on remote tool calls.
 
 ---
 
