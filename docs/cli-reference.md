@@ -192,11 +192,19 @@ mcp-jail proxy [flags]
 
 ## `mcp-jail install`
 
-Automatically configures AI client configuration files (Claude Desktop, Cursor, Windsurf) to wrap configured MCP servers with `mcp-jail`. Creates an automatic backup file (`.mcp-jail.bak`) before modifying the config.
+Automatically configures AI client configuration files (Claude Desktop, Cursor, Windsurf, Google Antigravity / Gemini CLI & GUI) to wrap configured MCP servers with `mcp-jail`. Creates an automatic backup file (`.mcp-jail.bak`) before modifying the config.
 
 ```bash
 mcp-jail install <client> [flags]
 ```
+
+Supported `<client>` values:
+- `claude` - Claude Desktop
+- `cursor` - Cursor IDE
+- `windsurf` - Windsurf IDE
+- `antigravity` / `gemini` - Both Antigravity CLI and GUI
+- `antigravity-cli` / `gemini-cli` - Antigravity CLI only (`~/.gemini/antigravity-cli/mcp_config.json`)
+- `antigravity-gui` / `gemini-gui` - Antigravity GUI only (`~/.gemini/config/mcp_config.json`)
 
 ### Flags
 
@@ -214,6 +222,14 @@ Restores original MCP server commands by removing the `mcp-jail` wrapper from cl
 ```bash
 mcp-jail uninstall <client> [flags]
 ```
+
+Supported `<client>` values:
+- `claude` - Claude Desktop
+- `cursor` - Cursor IDE
+- `windsurf` - Windsurf IDE
+- `antigravity` / `gemini` - Both Antigravity CLI and GUI
+- `antigravity-cli` / `gemini-cli` - Antigravity CLI only
+- `antigravity-gui` / `gemini-gui` - Antigravity GUI only
 
 ### Flags
 

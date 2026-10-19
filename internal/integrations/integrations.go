@@ -10,13 +10,25 @@ import (
 )
 
 // SupportedClients lists valid client target names.
-var SupportedClients = []string{"claude", "cursor", "windsurf"}
+var SupportedClients = []string{
+	"claude",
+	"cursor",
+	"windsurf",
+	"antigravity",
+	"antigravity-cli",
+	"antigravity-gui",
+	"gemini",
+	"gemini-cli",
+	"gemini-gui",
+}
 
 // ServerConfig represents the MCP server configuration block in client JSON configs.
 type ServerConfig struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args,omitempty"`
-	Env     map[string]string `json:"env,omitempty"`
+	Command   string            `json:"command,omitempty"`
+	Args      []string          `json:"args,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	ServerURL string            `json:"serverUrl,omitempty"`
+	URL       string            `json:"url,omitempty"`
 }
 
 // ConfigFile represents a standard MCP client config containing mcpServers.
@@ -26,40 +38,75 @@ type ConfigFile struct {
 	Other map[string]interface{} `json:"-"`
 }
 
-// GetDefaultConfigPath resolves the default config path for the requested client.
-func GetDefaultConfigPath(client string) (string, error) {
+// GetDefaultConfigPaths resolves all default config paths for the requested client.
+func GetDefaultConfigPaths(client string) ([]string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
+		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
+
+	agyCLIPath := filepath.Join(home, ".gemini", "antigravity-cli", "mcp_config.json")
+	agyGUIPath := filepath.Join(home, ".gemini", "config", "mcp_config.json")
 
 	switch strings.ToLower(client) {
 	case "claude":
 		switch runtime.GOOS {
 		case "darwin":
-			return filepath.Join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json"), nil
+			return []string{filepath.Join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json")}, nil
 		case "windows":
 			appData := os.Getenv("APPDATA")
 			if appData == "" {
 				appData = filepath.Join(home, "AppData", "Roaming")
 			}
-			return filepath.Join(appData, "Claude", "claude_desktop_config.json"), nil
+			return []string{filepath.Join(appData, "Claude", "claude_desktop_config.json")}, nil
 		default: // linux / bsd
-			return filepath.Join(home, ".config", "Claude", "claude_desktop_config.json"), nil
+			return []string{filepath.Join(home, ".config", "Claude", "claude_desktop_config.json")}, nil
 		}
 
 	case "cursor":
-		return filepath.Join(home, ".cursor", "mcp.json"), nil
+		return []string{filepath.Join(home, ".cursor", "mcp.json")}, nil
 
 	case "windsurf":
-		return filepath.Join(home, ".codeium", "windsurf", "mcp_config.json"), nil
+		return []string{filepath.Join(home, ".codeium", "windsurf", "mcp_config.json")}, nil
+
+	case "antigravity-cli", "gemini-cli", "agy-cli":
+		return []string{agyCLIPath}, nil
+
+	case "antigravity-gui", "gemini-gui", "agy-gui", "antigravity-ide":
+		return []string{agyGUIPath}, nil
+
+	case "antigravity", "gemini", "agy":
+		var paths []string
+		if _, err := os.Stat(agyCLIPath); err == nil {
+			paths = append(paths, agyCLIPath)
+		}
+		if _, err := os.Stat(agyGUIPath); err == nil {
+			paths = append(paths, agyGUIPath)
+		}
+		// If neither exists yet, return both so error or setup reports both locations
+		if len(paths) == 0 {
+			paths = append(paths, agyCLIPath, agyGUIPath)
+		}
+		return paths, nil
 
 	default:
-		return "", fmt.Errorf("unsupported client %q (supported: %s)", client, strings.Join(SupportedClients, ", "))
+		return nil, fmt.Errorf("unsupported client %q (supported: %s)", client, strings.Join(SupportedClients, ", "))
 	}
 }
 
-// InstallResult reports the result of wrapping servers.
+// GetDefaultConfigPath resolves the primary config path for single-target callers.
+func GetDefaultConfigPath(client string) (string, error) {
+	paths, err := GetDefaultConfigPaths(client)
+	if err != nil {
+		return "", err
+	}
+	if len(paths) == 0 {
+		return "", fmt.Errorf("no config path found for %s", client)
+	}
+	return paths[0], nil
+}
+
+// InstallResult reports the result of wrapping servers in a specific config file.
 type InstallResult struct {
 	ConfigPath string
 	BackupPath string
@@ -67,21 +114,43 @@ type InstallResult struct {
 	Skipped    []string
 }
 
-// Install patches the client config to wrap server commands with mcp-jail.
-func Install(client, serverFilter, customPath string) (*InstallResult, error) {
-	cfgPath := customPath
-	if cfgPath == "" {
+// Install patches client config file(s) to wrap server commands with mcp-jail.
+func Install(client, serverFilter, customPath string) ([]*InstallResult, error) {
+	var paths []string
+	if customPath != "" {
+		paths = []string{customPath}
+	} else {
 		var err error
-		cfgPath, err = GetDefaultConfigPath(client)
+		paths, err = GetDefaultConfigPaths(client)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	var results []*InstallResult
+	var errs []string
+
+	for _, cfgPath := range paths {
+		res, err := installSingle(cfgPath, serverFilter, client)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", cfgPath, err))
+			continue
+		}
+		results = append(results, res)
+	}
+
+	if len(results) == 0 && len(errs) > 0 {
+		return nil, fmt.Errorf("install failed:\n  %s", strings.Join(errs, "\n  "))
+	}
+
+	return results, nil
+}
+
+func installSingle(cfgPath, serverFilter, client string) (*InstallResult, error) {
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("configuration file not found at %s: ensure %s is installed", cfgPath, client)
+			return nil, fmt.Errorf("configuration file not found (ensure %s is installed)", client)
 		}
 		return nil, fmt.Errorf("failed to read %s: %w", cfgPath, err)
 	}
@@ -119,7 +188,21 @@ func Install(client, serverFilter, customPath string) (*InstallResult, error) {
 
 		origCmd, _ := sMap["command"].(string)
 		if origCmd == "mcp-jail" {
-			res.Skipped = append(res.Skipped, sName)
+			res.Skipped = append(res.Skipped, sName+" (already wrapped)")
+			continue
+		}
+
+		// Check for remote URL servers (serverUrl or url)
+		if origCmd == "" {
+			if _, hasURL := sMap["serverUrl"]; hasURL {
+				res.Skipped = append(res.Skipped, sName+" (remote serverUrl)")
+				continue
+			}
+			if _, hasURL := sMap["url"]; hasURL {
+				res.Skipped = append(res.Skipped, sName+" (remote url)")
+				continue
+			}
+			res.Skipped = append(res.Skipped, sName+" (no command defined)")
 			continue
 		}
 
@@ -153,24 +236,46 @@ func Install(client, serverFilter, customPath string) (*InstallResult, error) {
 	return res, nil
 }
 
-// UninstallResult reports unwrapped servers.
+// UninstallResult reports unwrapped servers in a specific config file.
 type UninstallResult struct {
 	ConfigPath string
 	Unwrapped  []string
 	Skipped    []string
 }
 
-// Uninstall restores wrapped server commands in the client config back to their original commands.
-func Uninstall(client, serverFilter, customPath string) (*UninstallResult, error) {
-	cfgPath := customPath
-	if cfgPath == "" {
+// Uninstall restores wrapped server commands in client config file(s) back to their original commands.
+func Uninstall(client, serverFilter, customPath string) ([]*UninstallResult, error) {
+	var paths []string
+	if customPath != "" {
+		paths = []string{customPath}
+	} else {
 		var err error
-		cfgPath, err = GetDefaultConfigPath(client)
+		paths, err = GetDefaultConfigPaths(client)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	var results []*UninstallResult
+	var errs []string
+
+	for _, cfgPath := range paths {
+		res, err := uninstallSingle(cfgPath, serverFilter, client)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", cfgPath, err))
+			continue
+		}
+		results = append(results, res)
+	}
+
+	if len(results) == 0 && len(errs) > 0 {
+		return nil, fmt.Errorf("uninstall failed:\n  %s", strings.Join(errs, "\n  "))
+	}
+
+	return results, nil
+}
+
+func uninstallSingle(cfgPath, serverFilter, client string) (*UninstallResult, error) {
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", cfgPath, err)

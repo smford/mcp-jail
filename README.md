@@ -98,11 +98,12 @@ make build
 ## Quick Start
 
 ### 1. One-Click AI Client Setup
-Automatically configure Claude Desktop, Cursor, or Windsurf to wrap all their configured MCP servers with `mcp-jail`:
+Automatically configure Claude Desktop, Cursor, Windsurf, or Google Antigravity to wrap all their configured MCP servers with `mcp-jail`:
 ```bash
-mcp-jail install claude     # Configures Claude Desktop
-mcp-jail install cursor     # Configures Cursor IDE
-mcp-jail install windsurf   # Configures Windsurf IDE
+mcp-jail install claude        # Configures Claude Desktop
+mcp-jail install cursor        # Configures Cursor IDE
+mcp-jail install windsurf      # Configures Windsurf IDE
+mcp-jail install antigravity   # Configures Google Antigravity & Gemini (CLI and GUI)
 ```
 
 ### 2. Initialize Configuration
@@ -249,13 +250,24 @@ When starting or configuring Claude Code with MCP servers:
 claude mcp add secure-fs -- mcp-jail wrap -- npx -y @modelcontextprotocol/server-filesystem .
 ```
 
-### 4. Google Antigravity
+### 4. Google Antigravity & Gemini (CLI & GUI)
 
-In your Antigravity agent configuration or `mcp_settings.json`:
+One-click setup automatically discovers and secures MCP configurations for both the Antigravity CLI (`~/.gemini/antigravity-cli/mcp_config.json`) and Antigravity GUI (`~/.gemini/config/mcp_config.json`):
+
+```bash
+# One-click install for both CLI and GUI
+mcp-jail install antigravity
+
+# Or target individually:
+mcp-jail install antigravity-cli
+mcp-jail install antigravity-gui
+```
+
+Manual configuration in your `mcp_config.json`:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "local-exec": {
       "command": "mcp-jail",
       "args": [
@@ -330,13 +342,13 @@ Runs an HTTP daemon providing health checks, Prometheus-compatible telemetry met
 - `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
 
 ### `mcp-jail install <client>`
-Automatically wraps configured MCP servers in popular AI desktop agents.
-- Supported clients: `claude` (Claude Desktop), `cursor` (Cursor IDE), `windsurf` (Windsurf IDE).
+Automatically wraps configured MCP servers in popular AI desktop agents and CLIs.
+- Supported clients: `claude` (Claude Desktop), `cursor` (Cursor IDE), `windsurf` (Windsurf IDE), `antigravity` / `gemini` (both Antigravity CLI and GUI), `antigravity-cli`, `antigravity-gui`.
 - `--dry-run`: Preview configuration changes without writing to disk.
 
 ### `mcp-jail uninstall <client>`
 Restores original unwrapped MCP server commands in target AI desktop configurations.
-- Supported clients: `claude`, `cursor`, `windsurf`.
+- Supported clients: `claude`, `cursor`, `windsurf`, `antigravity` / `gemini`, `antigravity-cli`, `antigravity-gui`.
 
 ### `mcp-jail test-policy [flags]`
 Dry-runs and simulates policy evaluation against arbitrary tool calls, resource paths, or prompt injections without executing commands.

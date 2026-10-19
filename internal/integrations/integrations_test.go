@@ -20,6 +20,9 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
     "fetch": {
       "command": "uvx",
       "args": ["mcp-server-fetch"]
+    },
+    "remote_service": {
+      "serverUrl": "https://remote.example.com/mcp"
     }
   }
 }`
@@ -29,13 +32,21 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
 	}
 
 	// 1. Install mcp-jail
-	res, err := Install("claude", "", configPath)
+	results, err := Install("claude", "", configPath)
 	if err != nil {
 		t.Fatalf("Install failed: %v", err)
 	}
 
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	res := results[0]
+
 	if len(res.Wrapped) != 2 {
 		t.Fatalf("expected 2 wrapped servers, got %d", len(res.Wrapped))
+	}
+	if len(res.Skipped) != 1 {
+		t.Fatalf("expected 1 skipped remote server, got %d", len(res.Skipped))
 	}
 
 	// Verify backup exists
@@ -61,19 +72,21 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
 	}
 
 	// Idempotency: calling Install again should skip already wrapped servers
-	res2, err := Install("claude", "", configPath)
+	results2, err := Install("claude", "", configPath)
 	if err != nil {
 		t.Fatalf("Second install failed: %v", err)
 	}
-	if len(res2.Wrapped) != 0 || len(res2.Skipped) != 2 {
-		t.Errorf("expected 0 wrapped and 2 skipped on re-install, got %d wrapped, %d skipped", len(res2.Wrapped), len(res2.Skipped))
+	res2 := results2[0]
+	if len(res2.Wrapped) != 0 || len(res2.Skipped) != 3 {
+		t.Errorf("expected 0 wrapped and 3 skipped on re-install, got %d wrapped, %d skipped", len(res2.Wrapped), len(res2.Skipped))
 	}
 
 	// 2. Uninstall mcp-jail
-	unres, err := Uninstall("claude", "", configPath)
+	unresults, err := Uninstall("claude", "", configPath)
 	if err != nil {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
+	unres := unresults[0]
 	if len(unres.Unwrapped) != 2 {
 		t.Fatalf("expected 2 unwrapped servers, got %d", len(unres.Unwrapped))
 	}
@@ -91,5 +104,31 @@ func TestIntegrations_InstallAndUninstall(t *testing.T) {
 	restoredSqlite := restoredServers["sqlite"].(map[string]interface{})
 	if restoredSqlite["command"] != "uvx" {
 		t.Errorf("expected restored command 'uvx', got %s", restoredSqlite["command"])
+	}
+}
+
+func TestIntegrations_AntigravityPaths(t *testing.T) {
+	paths, err := GetDefaultConfigPaths("antigravity")
+	if err != nil {
+		t.Fatalf("failed to get antigravity paths: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("expected at least 1 path for antigravity")
+	}
+
+	cliPaths, err := GetDefaultConfigPaths("antigravity-cli")
+	if err != nil || len(cliPaths) != 1 {
+		t.Fatalf("expected 1 path for antigravity-cli, got %v (err: %v)", cliPaths, err)
+	}
+	if filepath.Base(cliPaths[0]) != "mcp_config.json" {
+		t.Errorf("expected mcp_config.json, got %s", cliPaths[0])
+	}
+
+	guiPaths, err := GetDefaultConfigPaths("antigravity-gui")
+	if err != nil || len(guiPaths) != 1 {
+		t.Fatalf("expected 1 path for antigravity-gui, got %v (err: %v)", guiPaths, err)
+	}
+	if filepath.Base(guiPaths[0]) != "mcp_config.json" {
+		t.Errorf("expected mcp_config.json, got %s", guiPaths[0])
 	}
 }

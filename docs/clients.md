@@ -69,13 +69,37 @@ claude mcp list
 
 ---
 
-## 4. Google Antigravity
+## 4. Google Antigravity & Gemini (CLI and GUI)
 
-In your Antigravity agent configuration file (`mcp_settings.json`):
+### One-Click Setup
+Automatically detect and wrap MCP servers configured across Google Antigravity CLI and Antigravity GUI (Antigravity 2.0 / Antigravity IDE):
+
+```bash
+# Wrap all servers in both Antigravity CLI and GUI configurations
+mcp-jail install antigravity
+
+# Or target a specific surface:
+mcp-jail install antigravity-cli   # Configures ~/.gemini/antigravity-cli/mcp_config.json
+mcp-jail install antigravity-gui   # Configures ~/.gemini/config/mcp_config.json
+```
+
+*(Aliases `gemini`, `gemini-cli`, and `gemini-gui` are also supported.)*
+
+To restore the original unwrapped configurations:
+```bash
+mcp-jail uninstall antigravity
+```
+
+### Configuration Locations
+- **Antigravity CLI**: `~/.gemini/antigravity-cli/mcp_config.json`
+- **Antigravity GUI**: `~/.gemini/config/mcp_config.json`
+
+### Manual Setup
+In your Antigravity MCP configuration file (`mcp_config.json`):
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "workspace-tools": {
       "command": "mcp-jail",
       "args": [
@@ -89,6 +113,8 @@ In your Antigravity agent configuration file (`mcp_settings.json`):
   }
 }
 ```
+
+> **Note**: Remote MCP servers configured with `serverUrl` or `url` (such as Home Assistant) are automatically detected and safely skipped without modification.
 
 ---
 
