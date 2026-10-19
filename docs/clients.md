@@ -4,6 +4,24 @@ Connect `mcp-jail` with popular AI coding agents and desktop clients.
 
 ---
 
+## Auditing Installed MCP Servers
+
+You can discover and inspect all MCP servers installed across your AI clients at any time:
+
+```bash
+# List all configured servers across all clients and check their protection status
+mcp-jail list
+
+# Or target a specific client
+mcp-jail list antigravity
+mcp-jail list claude
+
+# Output structured JSON for automation
+mcp-jail list --json
+```
+
+---
+
 ## 1. Claude Desktop
 
 Edit your Claude Desktop configuration file:

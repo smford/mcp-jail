@@ -13,6 +13,7 @@ Usage:
 Available Commands:
   init         Generate default .mcp-jail.yaml security policy configuration
   wrap         Wrap and monitor an MCP server command with security boundaries
+  list         List installed MCP servers across AI clients and their protection status
   logs         View flight recorder audit trail of tool calls and policy blocks
   stats        Print session metrics, policy violations, and token estimates
   diff         Display unified diff of file mutations from an agent session
@@ -187,6 +188,33 @@ mcp-jail proxy [flags]
 | `--listen` | `-l` | string | `:8080` | Local address and port to bind |
 | `--config` | `-c` | string | `""` | Path to policy configuration file |
 | `--db` | | string | `~/.mcp-jail/flight-recorder.db` | Path to SQLite flight recorder database |
+
+---
+
+## `mcp-jail list`
+
+Discovers and lists all MCP servers configured across supported AI clients (Google Antigravity CLI, Google Antigravity GUI / IDE, Claude Desktop, Cursor, Windsurf). Displays whether each server is currently protected by `mcp-jail`, running unprotected, or connected to a remote URL.
+
+```bash
+mcp-jail list [client] [flags]
+```
+
+Aliases: `servers`, `status`.
+
+### Supported `<client>` values for filtering:
+- `claude` - Claude Desktop
+- `cursor` - Cursor IDE
+- `windsurf` - Windsurf IDE
+- `antigravity` / `gemini` - Both Antigravity CLI and GUI
+- `antigravity-cli` / `gemini-cli` - Antigravity CLI only
+- `antigravity-gui` / `gemini-gui` - Antigravity GUI only
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--json` | | bool | `false` | Output server list in JSON format |
+| `--path` | | string | `""` | Custom path to a client configuration file |
 
 ---
 

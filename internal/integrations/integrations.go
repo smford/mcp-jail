@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -20,6 +21,26 @@ var SupportedClients = []string{
 	"gemini",
 	"gemini-cli",
 	"gemini-gui",
+}
+
+// StandardClients lists distinct client configurations scanned by default.
+var StandardClients = []string{
+	"antigravity-cli",
+	"antigravity-gui",
+	"claude",
+	"cursor",
+	"windsurf",
+}
+
+// ServerInfo reports details and protection status of an installed MCP server.
+type ServerInfo struct {
+	Client     string   `json:"client"`
+	ConfigPath string   `json:"config_path"`
+	Name       string   `json:"name"`
+	Status     string   `json:"status"` // "Protected", "Unprotected", "Remote URL", "Empty"
+	Command    string   `json:"command,omitempty"`
+	Args       []string `json:"args,omitempty"`
+	Target     string   `json:"target"`
 }
 
 // ServerConfig represents the MCP server configuration block in client JSON configs.
@@ -348,4 +369,157 @@ func uninstallSingle(cfgPath, serverFilter, client string) (*UninstallResult, er
 	}
 
 	return res, nil
+}
+
+// ListServers discovers and inspects MCP servers across supported AI clients.
+func ListServers(clientFilter, customPath string) ([]*ServerInfo, error) {
+	if customPath != "" {
+		return listServersFromConfig(customPath, "custom")
+	}
+
+	var clientsToScan []string
+	if clientFilter == "" || strings.ToLower(clientFilter) == "all" {
+		clientsToScan = StandardClients
+	} else {
+		filter := strings.ToLower(clientFilter)
+		switch filter {
+		case "antigravity", "gemini", "agy":
+			clientsToScan = []string{"antigravity-cli", "antigravity-gui"}
+		default:
+			clientsToScan = []string{filter}
+		}
+	}
+
+	var allServers []*ServerInfo
+	var errs []string
+
+	for _, client := range clientsToScan {
+		paths, err := GetDefaultConfigPaths(client)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", client, err))
+			continue
+		}
+
+		for _, p := range paths {
+			if _, err := os.Stat(p); err != nil {
+				// If a specific client was requested, report that it was not found
+				if clientFilter != "" && clientFilter != "all" {
+					errs = append(errs, fmt.Sprintf("%s (%s): file not found", client, p))
+				}
+				continue
+			}
+
+			servers, err := listServersFromConfig(p, client)
+			if err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", p, err))
+				continue
+			}
+			allServers = append(allServers, servers...)
+		}
+	}
+
+	if len(allServers) == 0 && len(errs) > 0 {
+		return nil, fmt.Errorf("%s", strings.Join(errs, "\n"))
+	}
+
+	return allServers, nil
+}
+
+func listServersFromConfig(cfgPath, clientName string) ([]*ServerInfo, error) {
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("invalid json in %s: %w", cfgPath, err)
+	}
+
+	serversRaw, ok := raw["mcpServers"].(map[string]interface{})
+	if !ok || len(serversRaw) == 0 {
+		serversRaw, ok = raw["servers"].(map[string]interface{})
+		if !ok || len(serversRaw) == 0 {
+			return nil, nil
+		}
+	}
+
+	var list []*ServerInfo
+	for sName, sVal := range serversRaw {
+		sMap, ok := sVal.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		info := &ServerInfo{
+			Client:     clientName,
+			ConfigPath: cfgPath,
+			Name:       sName,
+		}
+
+		cmd, _ := sMap["command"].(string)
+		var args []string
+		if argsRaw, ok := sMap["args"].([]interface{}); ok {
+			for _, a := range argsRaw {
+				if s, ok := a.(string); ok {
+					args = append(args, s)
+				}
+			}
+		}
+
+		info.Command = cmd
+		info.Args = args
+
+		serverURL, _ := sMap["serverUrl"].(string)
+		if serverURL == "" {
+			serverURL, _ = sMap["url"].(string)
+		}
+
+		if cmd == "mcp-jail" {
+			info.Status = "Protected"
+			targetCmd, targetArgs := extractTargetFromWrap(args)
+			if targetCmd != "" {
+				if len(targetArgs) > 0 {
+					info.Target = targetCmd + " " + strings.Join(targetArgs, " ")
+				} else {
+					info.Target = targetCmd
+				}
+			} else {
+				info.Target = "mcp-jail " + strings.Join(args, " ")
+			}
+		} else if cmd != "" {
+			info.Status = "Unprotected"
+			if len(args) > 0 {
+				info.Target = cmd + " " + strings.Join(args, " ")
+			} else {
+				info.Target = cmd
+			}
+		} else if serverURL != "" {
+			info.Status = "Remote URL"
+			info.Target = serverURL
+		} else {
+			info.Status = "Empty"
+			info.Target = "(no command/url)"
+		}
+
+		list = append(list, info)
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Client != list[j].Client {
+			return list[i].Client < list[j].Client
+		}
+		return list[i].Name < list[j].Name
+	})
+
+	return list, nil
+}
+
+func extractTargetFromWrap(args []string) (string, []string) {
+	for i, arg := range args {
+		if arg == "--" && i+1 < len(args) {
+			return args[i+1], args[i+2:]
+		}
+	}
+	return "", nil
 }

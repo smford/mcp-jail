@@ -106,19 +106,27 @@ mcp-jail install windsurf      # Configures Windsurf IDE
 mcp-jail install antigravity   # Configures Google Antigravity & Gemini (CLI and GUI)
 ```
 
-### 2. Initialize Configuration
+### 2. Discover & Audit Installed MCP Servers
+List all MCP servers installed across your AI clients and view their protection status:
+```bash
+mcp-jail list                  # Scan all supported AI clients (alias: mcp-jail servers)
+mcp-jail list antigravity      # Filter by client (or claude, cursor, windsurf)
+mcp-jail list --json           # Structured JSON output for automation
+```
+
+### 3. Initialize Configuration
 Generate a strict default `.mcp-jail.yaml` in your project root:
 ```bash
 mcp-jail init
 ```
 
-### 3. Wrap Any MCP Server
+### 4. Wrap Any MCP Server
 Prepend `mcp-jail wrap --` to any MCP server command. Use `--isolate` to activate OS-level sandbox containerization:
 ```bash
 mcp-jail wrap --isolate -- npx -y @modelcontextprotocol/server-filesystem /path/to/workspace
 ```
 
-### 4. Test & Lint Security Policies
+### 5. Test & Lint Security Policies
 ```bash
 # Verify policy decisions without running an active MCP server
 mcp-jail test-policy --tool write_file --args '{"path": "/etc/passwd"}'
@@ -127,20 +135,20 @@ mcp-jail test-policy --tool write_file --args '{"path": "/etc/passwd"}'
 mcp-jail lint-policy .mcp-jail.yaml
 ```
 
-### 5. Live Activity Monitor
+### 6. Live Activity Monitor
 Open another terminal to watch active MCP sessions, calls, and latency in real time:
 ```bash
 mcp-jail top
 ```
 
-### 6. Auto-Generate Policies with Learning Mode
+### 7. Auto-Generate Policies with Learning Mode
 Run an MCP server in learning mode to observe benign behavior and synthesize a least-privilege security policy:
 ```bash
 mcp-jail learn -- npx -y @modelcontextprotocol/server-filesystem .
 # Generates .mcp-jail.learned.yaml
 ```
 
-### 7. Inspect Changes & Rollback Rogue Modifications
+### 8. Inspect Changes & Rollback Rogue Modifications
 ```bash
 # View unified git-style diff of file modifications made during an agent session
 mcp-jail diff
@@ -149,7 +157,7 @@ mcp-jail diff
 mcp-jail rollback
 ```
 
-### 8. Inspect Audit Logs & Metrics
+### 9. Inspect Audit Logs & Metrics
 ```bash
 # View recent intercepted calls, latency, and redactions
 mcp-jail logs --tail 20
@@ -340,6 +348,12 @@ Runs a transparent HTTP / Server-Sent Events (SSE) reverse proxy to protect remo
 Runs an HTTP daemon providing health checks, Prometheus-compatible telemetry metrics, and JSON endpoints.
 - `--listen <addr>`: HTTP daemon address (default: `:9090`).
 - `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
+### `mcp-jail list [client] [flags]`
+Discovers and lists installed MCP servers across supported AI clients (Antigravity CLI & GUI, Claude Desktop, Cursor, Windsurf) along with their protection status.
+- Aliases: `servers`, `status`.
+- `--json`: Output full details as structured JSON.
+- `--path <path>`: Custom path to a specific configuration file to inspect.
 
 ### `mcp-jail install <client>`
 Automatically wraps configured MCP servers in popular AI desktop agents and CLIs.

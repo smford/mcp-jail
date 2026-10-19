@@ -132,3 +132,65 @@ func TestIntegrations_AntigravityPaths(t *testing.T) {
 		t.Errorf("expected mcp_config.json, got %s", guiPaths[0])
 	}
 }
+
+func TestIntegrations_ListServers(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "mcp.json")
+
+	content := `{
+  "mcpServers": {
+    "wrapped-tool": {
+      "command": "mcp-jail",
+      "args": ["wrap", "--config", ".mcp-jail.yaml", "--", "node", "server.js"]
+    },
+    "raw-tool": {
+      "command": "npx",
+      "args": ["-y", "my-server"]
+    },
+    "remote-tool": {
+      "serverUrl": "https://api.example.com/mcp"
+    }
+  }
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test config: %v", err)
+	}
+
+	servers, err := ListServers("", configPath)
+	if err != nil {
+		t.Fatalf("ListServers failed: %v", err)
+	}
+
+	if len(servers) != 3 {
+		t.Fatalf("expected 3 servers, got %d", len(servers))
+	}
+
+	serverMap := make(map[string]*ServerInfo)
+	for _, s := range servers {
+		serverMap[s.Name] = s
+	}
+
+	wrapped := serverMap["wrapped-tool"]
+	if wrapped == nil || wrapped.Status != "Protected" {
+		t.Errorf("expected wrapped-tool to be Protected, got %+v", wrapped)
+	}
+	if wrapped.Target != "node server.js" {
+		t.Errorf("expected target 'node server.js', got %q", wrapped.Target)
+	}
+
+	raw := serverMap["raw-tool"]
+	if raw == nil || raw.Status != "Unprotected" {
+		t.Errorf("expected raw-tool to be Unprotected, got %+v", raw)
+	}
+	if raw.Target != "npx -y my-server" {
+		t.Errorf("expected target 'npx -y my-server', got %q", raw.Target)
+	}
+
+	remote := serverMap["remote-tool"]
+	if remote == nil || remote.Status != "Remote URL" {
+		t.Errorf("expected remote-tool to be Remote URL, got %+v", remote)
+	}
+	if remote.Target != "https://api.example.com/mcp" {
+		t.Errorf("expected target 'https://api.example.com/mcp', got %q", remote.Target)
+	}
+}
