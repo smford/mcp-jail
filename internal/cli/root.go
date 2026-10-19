@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version   = "0.3.0"
+	version   = "0.4.0"
 	commit    = "none"
 	date      = "unknown"
 	copyright = "Copyright (c) 2026 smford"
