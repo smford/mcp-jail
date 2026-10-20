@@ -99,6 +99,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(wrapCmd)
 	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(statsCmd)
 	rootCmd.AddCommand(serveCmd)

@@ -361,6 +361,10 @@ Discovers and lists installed MCP servers across supported AI clients (Antigravi
 - `--json`: Output full details as structured JSON.
 - `--path <path>`: Custom path to a specific configuration file to inspect.
 
+### `mcp-jail doctor [flags]`
+Runs comprehensive environment diagnostics, checks client configurations, verifies reachability of remote MCP servers, checks local command binaries in `$PATH`, audits `.mcp-jail.yaml` policy syntax, and validates SQLite database and OS sandboxing readiness.
+- `--json`: Output full diagnostics report as structured JSON.
+
 ### `mcp-jail install <client>`
 Automatically wraps configured MCP servers in popular AI desktop agents and CLIs.
 - Supported clients: `claude` (Claude Desktop), `cursor` (Cursor IDE), `windsurf` (Windsurf IDE), `antigravity` / `gemini` (both Antigravity CLI and GUI), `antigravity-cli`, `antigravity-gui`.

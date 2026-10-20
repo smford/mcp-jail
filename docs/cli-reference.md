@@ -14,6 +14,7 @@ Available Commands:
   init         Generate default .mcp-jail.yaml security policy configuration
   wrap         Wrap and monitor an MCP server command with security boundaries
   list         List installed MCP servers across AI clients and their protection status
+  doctor       Run comprehensive system diagnostics, server connectivity, and policy audits
   logs         View flight recorder audit trail of tool calls and policy blocks
   stats        Print session metrics, policy violations, and token estimates
   diff         Display unified diff of file mutations from an agent session
@@ -222,6 +223,22 @@ Aliases: `servers`, `status`.
 | :--- | :--- | :--- | :--- | :--- |
 | `--json` | | bool | `false` | Output server list in JSON format |
 | `--path` | | string | `""` | Custom path to a client configuration file |
+
+---
+
+## `mcp-jail doctor`
+
+Runs comprehensive environment diagnostics, checks client configurations, verifies reachability of remote MCP servers, checks local command binaries in `$PATH`, audits `.mcp-jail.yaml` policy syntax, checks SQLite database integrity, and validates kernel sandboxing readiness (`sandbox-exec` / `bwrap`).
+
+```bash
+mcp-jail doctor [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--json` | | bool | `false` | Output diagnostics in structured JSON format |
 
 ---
 
