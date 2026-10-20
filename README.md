@@ -392,12 +392,21 @@ settings:
   dry_run: false
   log_level: "info"
 
-# 1. Tool Allow/Deny List
+# 1. Tool Allow/Deny List & Parameter Constraints
 tools:
   allowed: [] # If non-empty, only matching tool names are permitted
   denied:
     - "^format_disk$"
     - "^drop_database$"
+  rules:
+    - tool: ".*sql.*"
+      deny_args:
+        query: "(?i)\\b(DROP|TRUNCATE|ALTER\\s+USER)\\b"
+      reason: "Destructive SQL commands are blocked"
+    - tool: "git_push"
+      allow_args:
+        branch: "^(feature/|fix/).*"
+      reason: "Direct push to protected branches is blocked"
 
 # 2. Filesystem Boundary Enforcement
 filesystem:

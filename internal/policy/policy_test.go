@@ -268,3 +268,89 @@ func TestSymlinkTraversalBlocked(t *testing.T) {
 		t.Errorf("expected symlink escape to be blocked, got %+v", v)
 	}
 }
+
+func TestArgRules_DenyAllowAndRange(t *testing.T) {
+	minSpeed := 0.0
+	maxSpeed := 100.0
+
+	cfg := config.DefaultConfig()
+	cfg.Tools.Rules = []config.ToolArgRule{
+		{
+			Tool: ".*sql.*",
+			DenyArgs: map[string]string{
+				"query": "(?i)\\b(DROP|TRUNCATE)\\b",
+			},
+			Reason: "Destructive SQL commands are blocked",
+		},
+		{
+			Tool: "git_push",
+			AllowArgs: map[string]string{
+				"branch": "^feature/.*",
+			},
+			Reason: "Can only push to feature branches",
+		},
+		{
+			Tool: "set_speed",
+			Range: map[string]config.NumericRange{
+				"speed": {
+					Min: &minSpeed,
+					Max: &maxSpeed,
+				},
+			},
+		},
+	}
+
+	engine, err := NewEngine(cfg, ".")
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+
+	// 1. SQL deny test
+	v := engine.EvaluateToolCall("execute_sql", map[string]interface{}{
+		"query": "DROP TABLE users;",
+	})
+	if v == nil || v.RuleName != "arg_rule_denied" {
+		t.Errorf("expected DROP TABLE to be denied, got %+v", v)
+	}
+	if v != nil && v.Reason != "Destructive SQL commands are blocked" {
+		t.Errorf("unexpected custom reason: %s", v.Reason)
+	}
+
+	// Safe SQL
+	v = engine.EvaluateToolCall("execute_sql", map[string]interface{}{
+		"query": "SELECT * FROM users;",
+	})
+	if v != nil {
+		t.Errorf("expected safe query to pass, got %+v", v)
+	}
+
+	// 2. AllowArgs test (git_push)
+	v = engine.EvaluateToolCall("git_push", map[string]interface{}{
+		"branch": "main",
+	})
+	if v == nil || v.RuleName != "arg_rule_not_allowed" {
+		t.Errorf("expected push to main to be denied, got %+v", v)
+	}
+
+	v = engine.EvaluateToolCall("git_push", map[string]interface{}{
+		"branch": "feature/login-page",
+	})
+	if v != nil {
+		t.Errorf("expected push to feature branch to pass, got %+v", v)
+	}
+
+	// 3. Numeric range test (set_speed)
+	v = engine.EvaluateToolCall("set_speed", map[string]interface{}{
+		"speed": 150,
+	})
+	if v == nil || v.RuleName != "arg_rule_range_exceeded" {
+		t.Errorf("expected speed 150 to exceed max 100, got %+v", v)
+	}
+
+	v = engine.EvaluateToolCall("set_speed", map[string]interface{}{
+		"speed": 50,
+	})
+	if v != nil {
+		t.Errorf("expected speed 50 to pass, got %+v", v)
+	}
+}

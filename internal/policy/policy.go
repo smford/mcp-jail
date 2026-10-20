@@ -22,6 +22,14 @@ type Violation struct {
 	Reason   string `json:"reason"`
 }
 
+type compiledArgRule struct {
+	toolPattern *regexp.Regexp
+	denyArgs    map[string]*regexp.Regexp
+	allowArgs   map[string]*regexp.Regexp
+	ranges      map[string]config.NumericRange
+	reason      string
+}
+
 // Engine evaluates MCP tool calls against security and budget policies.
 type Engine struct {
 	cfg     *config.Config
@@ -36,6 +44,7 @@ type Engine struct {
 	compiledAllowedTools   []*regexp.Regexp
 	compiledDeniedTools    []*regexp.Regexp
 	compiledAskTools       []*regexp.Regexp
+	compiledArgRules       []compiledArgRule
 	compiledCommands       []*regexp.Regexp
 	compiledAskCommands    []*regexp.Regexp
 	compiledAllowedPrompts []*regexp.Regexp
@@ -97,6 +106,36 @@ func NewEngine(cfg *config.Config, cwd string) (*Engine, error) {
 			return nil, fmt.Errorf("invalid ask tool pattern %q: %w", pattern, err)
 		}
 		e.compiledAskTools = append(e.compiledAskTools, re)
+	}
+
+	// Compile fine-grained tool argument rules
+	for _, rule := range cfg.Tools.Rules {
+		reTool, err := regexp.Compile(rule.Tool)
+		if err != nil {
+			return nil, fmt.Errorf("invalid tool pattern %q in tool rule: %w", rule.Tool, err)
+		}
+		cRule := compiledArgRule{
+			toolPattern: reTool,
+			denyArgs:    make(map[string]*regexp.Regexp),
+			allowArgs:   make(map[string]*regexp.Regexp),
+			ranges:      rule.Range,
+			reason:      rule.Reason,
+		}
+		for argName, pat := range rule.DenyArgs {
+			reArg, err := regexp.Compile(pat)
+			if err != nil {
+				return nil, fmt.Errorf("invalid deny_args pattern %q for %s.%s: %w", pat, rule.Tool, argName, err)
+			}
+			cRule.denyArgs[argName] = reArg
+		}
+		for argName, pat := range rule.AllowArgs {
+			reArg, err := regexp.Compile(pat)
+			if err != nil {
+				return nil, fmt.Errorf("invalid allow_args pattern %q for %s.%s: %w", pat, rule.Tool, argName, err)
+			}
+			cRule.allowArgs[argName] = reArg
+		}
+		e.compiledArgRules = append(e.compiledArgRules, cRule)
 	}
 
 	// Compile command regexes
@@ -191,7 +230,12 @@ func (e *Engine) EvaluateToolCall(toolName string, arguments map[string]interfac
 		return v
 	}
 
-	// 3. Command Argument Guard
+	// 3. Fine-Grained Tool Argument Constraints
+	if v := e.checkArgRules(toolName, arguments); v != nil {
+		return v
+	}
+
+	// 4. Command Argument Guard
 	if e.cfg.Commands.Enabled {
 		if v := e.checkCommandGuard(arguments); v != nil {
 			return v
@@ -333,6 +377,114 @@ func (e *Engine) checkToolName(name string) *Violation {
 	}
 
 	return nil
+}
+
+func (e *Engine) checkArgRules(toolName string, arguments map[string]interface{}) *Violation {
+	if len(e.compiledArgRules) == 0 {
+		return nil
+	}
+
+	for _, rule := range e.compiledArgRules {
+		if !rule.toolPattern.MatchString(toolName) {
+			continue
+		}
+
+		// 1. Check deny_args
+		for argName, re := range rule.denyArgs {
+			val, exists := findArgumentValue(arguments, argName)
+			if exists {
+				valStr := fmt.Sprintf("%v", val)
+				if re.MatchString(valStr) {
+					reason := rule.reason
+					if reason == "" {
+						reason = fmt.Sprintf("Tool %q argument %q matches denied pattern %q", toolName, argName, re.String())
+					}
+					return &Violation{
+						RuleName: "arg_rule_denied",
+						Reason:   reason,
+					}
+				}
+			}
+		}
+
+		// 2. Check allow_args
+		for argName, re := range rule.allowArgs {
+			val, exists := findArgumentValue(arguments, argName)
+			if exists {
+				valStr := fmt.Sprintf("%v", val)
+				if !re.MatchString(valStr) {
+					reason := rule.reason
+					if reason == "" {
+						reason = fmt.Sprintf("Tool %q argument %q does not match required pattern %q", toolName, argName, re.String())
+					}
+					return &Violation{
+						RuleName: "arg_rule_not_allowed",
+						Reason:   reason,
+					}
+				}
+			}
+		}
+
+		// 3. Check numeric ranges
+		for argName, nRange := range rule.ranges {
+			val, exists := findArgumentValue(arguments, argName)
+			if exists {
+				var numVal float64
+				var isNum bool
+				switch v := val.(type) {
+				case int:
+					numVal = float64(v)
+					isNum = true
+				case int64:
+					numVal = float64(v)
+					isNum = true
+				case float64:
+					numVal = v
+					isNum = true
+				case float32:
+					numVal = float64(v)
+					isNum = true
+				}
+
+				if isNum {
+					if nRange.Min != nil && numVal < *nRange.Min {
+						reason := rule.reason
+						if reason == "" {
+							reason = fmt.Sprintf("Tool %q argument %q value %v is below minimum allowed %v", toolName, argName, numVal, *nRange.Min)
+						}
+						return &Violation{
+							RuleName: "arg_rule_range_exceeded",
+							Reason:   reason,
+						}
+					}
+					if nRange.Max != nil && numVal > *nRange.Max {
+						reason := rule.reason
+						if reason == "" {
+							reason = fmt.Sprintf("Tool %q argument %q value %v exceeds maximum allowed %v", toolName, argName, numVal, *nRange.Max)
+						}
+						return &Violation{
+							RuleName: "arg_rule_range_exceeded",
+							Reason:   reason,
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func findArgumentValue(arguments map[string]interface{}, argName string) (interface{}, bool) {
+	if val, ok := arguments[argName]; ok {
+		return val, true
+	}
+	for k, v := range arguments {
+		if strings.EqualFold(k, argName) {
+			return v, true
+		}
+	}
+	return nil, false
 }
 
 func (e *Engine) checkLimits() *Violation {

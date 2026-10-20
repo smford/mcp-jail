@@ -6,7 +6,7 @@ A detailed walkthrough demonstrating how `mcp-jail` intercepts, inspects, and bl
 
 ## Overview
 
-When connected to Home Assistant, an autonomous AI coding agent has direct access to physical devices in your home—including smart locks, security alarms, power outlets, thermostats, lights, and switches. 
+When connected to Home Assistant, an autonomous AI coding agent has direct access to physical devices in your home—including smart locks, security alarms, power outlets, thermostats, lights, and switches.
 
 Without protection, an agent hallucination, runaway loop, or malicious prompt injection could:
 - Turn off critical security alarms or unlock doors.

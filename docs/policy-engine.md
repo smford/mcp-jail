@@ -43,6 +43,33 @@ tools:
 - Regex syntax supported.
 - Tool names matching `denied` take precedence.
 
+### Fine-Grained Parameter Constraints (`tools.rules`)
+
+You can define granular argument-level constraints for matching tools, allowing tools only when their arguments satisfy safe boundaries:
+
+```yaml
+tools:
+  rules:
+    # 1. Deny dangerous arguments (e.g. database tools)
+    - tool: ".*sql.*"
+      deny_args:
+        query: "(?i)\\b(DROP|TRUNCATE|ALTER\\s+USER)\\b"
+      reason: "Destructive SQL statements are blocked"
+
+    # 2. Allow only safe argument patterns (e.g. git branches)
+    - tool: "git_push"
+      allow_args:
+        branch: "^(feature/|fix/).*"
+      reason: "Direct push to protected branches is blocked"
+
+    # 3. Numeric range constraints (e.g. speed, temperature, limits)
+    - tool: "set_speed"
+      range:
+        speed:
+          min: 0
+          max: 100
+```
+
 ---
 
 ## 2. Filesystem Boundary Enforcement

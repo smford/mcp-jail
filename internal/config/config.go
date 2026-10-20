@@ -34,9 +34,25 @@ type SettingsConfig struct {
 }
 
 type ToolsConfig struct {
-	Allowed []string `yaml:"allowed"`
-	Denied  []string `yaml:"denied"`
-	Ask     []string `yaml:"ask"`
+	Allowed []string      `yaml:"allowed"`
+	Denied  []string      `yaml:"denied"`
+	Ask     []string      `yaml:"ask"`
+	Rules   []ToolArgRule `yaml:"rules,omitempty"`
+}
+
+// ToolArgRule defines fine-grained argument constraints for matching tools.
+type ToolArgRule struct {
+	Tool      string                  `yaml:"tool"`                 // Regex pattern for matching tool name
+	DenyArgs  map[string]string       `yaml:"deny_args,omitempty"`  // Argument name -> regex pattern to deny
+	AllowArgs map[string]string       `yaml:"allow_args,omitempty"` // Argument name -> regex pattern that must match
+	Range     map[string]NumericRange `yaml:"range,omitempty"`      // Argument name -> min/max numeric constraints
+	Reason    string                  `yaml:"reason,omitempty"`     // Custom refusal message
+}
+
+// NumericRange defines optional minimum and maximum bounds for a numeric parameter.
+type NumericRange struct {
+	Min *float64 `yaml:"min,omitempty"`
+	Max *float64 `yaml:"max,omitempty"`
 }
 
 type FilesystemConfig struct {
