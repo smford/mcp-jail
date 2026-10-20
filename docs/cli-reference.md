@@ -227,6 +227,7 @@ Aliases: `servers`, `status`.
 - `antigravity` / `gemini` - Both Antigravity CLI and GUI
 - `antigravity-cli` / `gemini-cli` - Antigravity CLI only
 - `antigravity-gui` / `gemini-gui` - Antigravity GUI only
+- `workspace` / `local` - Local project repository configurations (`./.cursor/mcp.json`, `./.vscode/mcp.json`, `./mcp.json`)
 
 ### Flags
 
@@ -268,6 +269,7 @@ Supported `<client>` values:
 - `antigravity` / `gemini` - Both Antigravity CLI and GUI
 - `antigravity-cli` / `gemini-cli` - Antigravity CLI only (`~/.gemini/antigravity-cli/mcp_config.json`)
 - `antigravity-gui` / `gemini-gui` - Antigravity GUI only (`~/.gemini/config/mcp_config.json`)
+- `workspace` - Current project workspace (`./.cursor/mcp.json`, `./.vscode/mcp.json`, `./mcp.json`)
 
 ### Flags
 
@@ -293,6 +295,7 @@ Supported `<client>` values:
 - `antigravity` / `gemini` - Both Antigravity CLI and GUI
 - `antigravity-cli` / `gemini-cli` - Antigravity CLI only
 - `antigravity-gui` / `gemini-gui` - Antigravity GUI only
+- `workspace` - Current project workspace (`./.cursor/mcp.json`, `./.vscode/mcp.json`, `./mcp.json`)
 
 ### Flags
 

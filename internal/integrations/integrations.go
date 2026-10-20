@@ -21,6 +21,28 @@ var SupportedClients = []string{
 	"gemini",
 	"gemini-cli",
 	"gemini-gui",
+	"workspace",
+	"local",
+	"project",
+}
+
+// WorkspaceConfigCandidates lists relative paths checked for local repository/workspace MCP configurations.
+var WorkspaceConfigCandidates = []string{
+	filepath.Join(".cursor", "mcp.json"),
+	filepath.Join(".vscode", "mcp.json"),
+	"mcp.json",
+	".mcp.json",
+}
+
+// GetWorkspaceConfigPaths checks the current working directory for local project workspace MCP config files.
+func GetWorkspaceConfigPaths() []string {
+	var found []string
+	for _, candidate := range WorkspaceConfigCandidates {
+		if _, err := os.Stat(candidate); err == nil {
+			found = append(found, candidate)
+		}
+	}
+	return found
 }
 
 // StandardClients lists distinct client configurations scanned by default.
@@ -109,6 +131,13 @@ func GetDefaultConfigPaths(client string) ([]string, error) {
 			paths = append(paths, agyCLIPath, agyGUIPath)
 		}
 		return paths, nil
+
+	case "workspace", "local", "project":
+		ws := GetWorkspaceConfigPaths()
+		if len(ws) > 0 {
+			return ws, nil
+		}
+		return []string{filepath.Join(".cursor", "mcp.json")}, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported client %q (supported: %s)", client, strings.Join(SupportedClients, ", "))
@@ -458,6 +487,28 @@ func ListServers(clientFilter, customPath string) ([]*ServerInfo, error) {
 
 	if len(allServers) == 0 && len(errs) > 0 {
 		return nil, fmt.Errorf("%s", strings.Join(errs, "\n"))
+	}
+
+	// Auto-discover local workspace configurations when scanning all clients
+	if clientFilter == "" || strings.ToLower(clientFilter) == "all" {
+		seenPaths := make(map[string]bool)
+		for _, s := range allServers {
+			if abs, err := filepath.Abs(s.ConfigPath); err == nil {
+				seenPaths[abs] = true
+			}
+		}
+		wsPaths := GetWorkspaceConfigPaths()
+		for _, p := range wsPaths {
+			abs, err := filepath.Abs(p)
+			if err == nil && seenPaths[abs] {
+				continue
+			}
+			servers, err := listServersFromConfig(p, "workspace")
+			if err == nil && len(servers) > 0 {
+				allServers = append(allServers, servers...)
+				seenPaths[abs] = true
+			}
+		}
 	}
 
 	return allServers, nil

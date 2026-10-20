@@ -72,12 +72,12 @@ previous executions without re-running child processes, touching real APIs, or c
 
 // ReplayIndex organizes recorded session events for fast response lookup.
 type ReplayIndex struct {
-	InitializeResp []byte
-	ToolsListResp  []byte
-	ResourcesResp  []byte
-	PromptsResp    []byte
-	ToolResponses  map[string][]*recorder.Event
-	ToolIndices    map[string]int
+	InitializeResp  []byte
+	ToolsListResp   []byte
+	ResourcesResp   []byte
+	PromptsResp     []byte
+	ToolResponses   map[string][]*recorder.Event
+	ToolIndices     map[string]int
 	MethodResponses map[string][]*recorder.Event
 	MethodIndices   map[string]int
 }

@@ -199,3 +199,80 @@ func TestIntegrations_ListServers(t *testing.T) {
 		t.Errorf("expected target 'https://api.example.com/mcp', got %q", remote.Target)
 	}
 }
+
+func TestIntegrations_WorkspaceAutoDiscovery(t *testing.T) {
+	tempDir := t.TempDir()
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get wd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(origWd)
+	}()
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to chdir to tempDir: %v", err)
+	}
+
+	// Create .cursor/mcp.json
+	cursorDir := filepath.Join(tempDir, ".cursor")
+	if err := os.MkdirAll(cursorDir, 0755); err != nil {
+		t.Fatalf("failed to mkdir: %v", err)
+	}
+
+	cfgContent := `{
+  "mcpServers": {
+    "project-db": {
+      "command": "uvx",
+      "args": ["mcp-server-postgres", "--connection", "postgres://localhost/mydb"]
+    }
+  }
+}`
+	cfgPath := filepath.Join(cursorDir, "mcp.json")
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	// 1. Verify workspace config discovery
+	found := GetWorkspaceConfigPaths()
+	if len(found) != 1 || !strings.Contains(found[0], filepath.Join(".cursor", "mcp.json")) {
+		t.Fatalf("expected .cursor/mcp.json in workspace configs, got: %v", found)
+	}
+
+	// 2. Verify ListServers discovers the workspace server
+	servers, err := ListServers("", "")
+	if err != nil {
+		t.Fatalf("ListServers failed: %v", err)
+	}
+
+	var foundProjectDB bool
+	for _, s := range servers {
+		if s.Name == "project-db" && s.Client == "workspace" {
+			foundProjectDB = true
+			if s.Status != "Unprotected" {
+				t.Errorf("expected Unprotected, got: %s", s.Status)
+			}
+		}
+	}
+	if !foundProjectDB {
+		t.Errorf("failed to discover project-db in workspace")
+	}
+
+	// 3. Test install on workspace client
+	installRes, err := Install("workspace", "", "")
+	if err != nil {
+		t.Fatalf("Install workspace failed: %v", err)
+	}
+	if len(installRes) == 0 || len(installRes[0].Wrapped) != 1 || installRes[0].Wrapped[0] != "project-db" {
+		t.Fatalf("unexpected install result: %+v", installRes)
+	}
+
+	// 4. Verify uninstall on workspace client
+	uninstallRes, err := Uninstall("workspace", "", "")
+	if err != nil {
+		t.Fatalf("Uninstall workspace failed: %v", err)
+	}
+	if len(uninstallRes) == 0 || len(uninstallRes[0].Unwrapped) != 1 || uninstallRes[0].Unwrapped[0] != "project-db" {
+		t.Fatalf("unexpected uninstall result: %+v", uninstallRes)
+	}
+}

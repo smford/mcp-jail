@@ -370,7 +370,7 @@ Runs an HTTP daemon providing health checks, Prometheus-compatible telemetry met
 - `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
 
 ### `mcp-jail list [client] [flags]`
-Discovers and lists installed MCP servers across supported AI clients (Antigravity CLI & GUI, Claude Desktop, Cursor, Windsurf) along with their protection status.
+Discovers and lists installed MCP servers across supported AI clients (Antigravity CLI & GUI, Claude Desktop, Cursor, Windsurf) and local project workspace configurations (`./.cursor/mcp.json`, `./.vscode/mcp.json`, `./mcp.json`) along with their protection status.
 - Aliases: `servers`, `status`.
 - `--json`: Output full details as structured JSON.
 - `--path <path>`: Custom path to a specific configuration file to inspect.
@@ -380,13 +380,13 @@ Runs comprehensive environment diagnostics, checks client configurations, verifi
 - `--json`: Output full diagnostics report as structured JSON.
 
 ### `mcp-jail install <client>`
-Automatically wraps configured MCP servers in popular AI desktop agents and CLIs.
-- Supported clients: `claude` (Claude Desktop), `cursor` (Cursor IDE), `windsurf` (Windsurf IDE), `antigravity` / `gemini` (both Antigravity CLI and GUI), `antigravity-cli`, `antigravity-gui`.
+Automatically wraps configured MCP servers in popular AI desktop agents, CLIs, and local project workspaces.
+- Supported clients: `claude` (Claude Desktop), `cursor` (Cursor IDE), `windsurf` (Windsurf IDE), `antigravity` / `gemini` (both Antigravity CLI and GUI), `antigravity-cli`, `antigravity-gui`, `workspace` (local project: `.cursor/mcp.json`, `.vscode/mcp.json`, `mcp.json`).
 - `--dry-run`: Preview configuration changes without writing to disk.
 
 ### `mcp-jail uninstall <client>`
-Restores original unwrapped MCP server commands in target AI desktop configurations.
-- Supported clients: `claude`, `cursor`, `windsurf`, `antigravity` / `gemini`, `antigravity-cli`, `antigravity-gui`.
+Restores original unwrapped MCP server commands in target AI desktop configurations or local project workspaces.
+- Supported clients: `claude`, `cursor`, `windsurf`, `antigravity` / `gemini`, `antigravity-cli`, `antigravity-gui`, `workspace`.
 
 ### `mcp-jail test-policy [flags]`
 Dry-runs and simulates policy evaluation against arbitrary tool calls, resource paths, or prompt injections without executing commands.

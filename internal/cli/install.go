@@ -27,7 +27,8 @@ Supported clients:
   • gemini            (Alias for antigravity)
   • claude            (Claude Desktop)
   • cursor            (Cursor IDE)
-  • windsurf          (Windsurf IDE)`,
+  • windsurf          (Windsurf IDE)
+  • workspace         (Current workspace: ./.cursor/mcp.json, ./.vscode/mcp.json, ./mcp.json)`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("missing client name. Supported clients: %s", strings.Join(integrations.SupportedClients, ", "))
