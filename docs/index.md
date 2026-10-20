@@ -73,7 +73,7 @@ flowchart TD
 | **Real-Time Alerts** | Native OS desktop popups (macOS / Linux) & webhooks (Slack/Discord) | Instant notification on policy blocks or approval denials |
 | **Deterministic Replay** | SQLite-backed stdio mock server (`mcp-jail replay`) | Replays exact responses without touching child servers or live APIs |
 | **Environment Doctor** | Pre-flight diagnostics (`mcp-jail doctor`) | Comprehensive verification of clients, servers, and sandbox readiness |
-| **Audit Trail** | Pure-Go SQLite in WAL mode with async channel worker | Instant zero-latency recording with live streaming (`logs -f`) |
+| **Audit Trail & SIEM** | Pure-Go SQLite in WAL mode + multi-format export (`json`, `cef`, `logfmt`) | Instant zero-latency recording with live streaming (`logs -f`) |
 
 ---
 

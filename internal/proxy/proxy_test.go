@@ -220,3 +220,58 @@ func TestEndToEndProxyWithMockMCPServer(t *testing.T) {
 		t.Errorf("expected at least one event with action=blocked")
 	}
 }
+
+func TestProxy_ExportFormats(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testCases := []struct {
+		format   string
+		expected string
+	}{
+		{
+			format:   "cef",
+			expected: "CEF:0|smford|mcp-jail|",
+		},
+		{
+			format:   "logfmt",
+			expected: "level=warn action=blocked",
+		},
+		{
+			format:   "json",
+			expected: `"action":"blocked"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.format, func(t *testing.T) {
+			exportFile := filepath.Join(tempDir, "export_"+tc.format+".log")
+			cfg := config.DefaultConfig()
+			cfg.Export.Enabled = true
+			cfg.Export.File = exportFile
+			cfg.Export.Format = tc.format
+
+			p := &Proxy{
+				opts: Options{
+					Config: cfg,
+				},
+			}
+
+			ev := &recorder.Event{
+				Action:        recorder.ActionBlocked,
+				ToolName:      "test_tool",
+				RuleTriggered: "blocked_rule",
+				Timestamp:     time.Now(),
+			}
+
+			p.exportEvent(ev)
+
+			data, err := os.ReadFile(exportFile)
+			if err != nil {
+				t.Fatalf("failed to read export file: %v", err)
+			}
+			if !strings.Contains(string(data), tc.expected) {
+				t.Errorf("expected %q in export file, got: %s", tc.expected, string(data))
+			}
+		})
+	}
+}

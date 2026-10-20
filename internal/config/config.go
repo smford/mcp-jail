@@ -123,6 +123,7 @@ type SnapshotsConfig struct {
 type ExportConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	File    string `yaml:"file"`
+	Format  string `yaml:"format"` // "json", "cef", "logfmt" (default: "json")
 }
 
 // ResourcesConfig configures access rules for MCP resources/read and resources/subscribe.
@@ -237,6 +238,7 @@ func DefaultConfig() *Config {
 		Export: ExportConfig{
 			Enabled: false,
 			File:    "",
+			Format:  "json",
 		},
 		Resources: ResourcesConfig{
 			Enabled:     true,
@@ -372,6 +374,7 @@ snapshots:
 export:
   enabled: false
   file: ""
+  format: "json" # "json", "cef", or "logfmt"
 
 # MCP Resources Access Control (resources/read, resources/subscribe)
 resources:

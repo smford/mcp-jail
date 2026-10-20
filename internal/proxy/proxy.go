@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/smford/mcp-jail/internal/alert"
 	"github.com/smford/mcp-jail/internal/config"
+	"github.com/smford/mcp-jail/internal/exporter"
 	"github.com/smford/mcp-jail/internal/policy"
 	"github.com/smford/mcp-jail/internal/ratelimit"
 	"github.com/smford/mcp-jail/internal/recorder"
@@ -668,7 +669,7 @@ func (p *Proxy) recordEvent(ev *recorder.Event) {
 
 func (p *Proxy) exportEvent(ev *recorder.Event) {
 	filePath := recorder.ExpandPath(p.opts.Config.Export.File)
-	data, err := json.Marshal(ev)
+	data, err := exporter.FormatEvent(p.opts.Config.Export.Format, ev, "0.5.0")
 	if err != nil {
 		return
 	}

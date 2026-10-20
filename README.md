@@ -320,6 +320,7 @@ Transparently proxies stdin and stdout of the target MCP server command or remot
 
 ### `mcp-jail logs [flags]`
 Prints an audit trail of tool invocations, policy blocks, and credential redactions.
+- `--format <format>`: Output format: `table` (default), `json` (single-line JSON), `cef` (ArcSight/Splunk CEF), or `logfmt` (key=value).
 - `-f, --follow`: Stream and follow incoming events in real time.
 - `--session <id>`: Filter by session ID.
 - `--blocked-only`: Show only events blocked by security rules.

@@ -72,6 +72,57 @@ mcp-jail logs --blocked-only
 
 # Filter for a specific session
 mcp-jail logs --session e2e-session-123 --tail 100
+
+# Stream events in real time
+mcp-jail logs -f
+```
+
+---
+
+## Structured Log Formats (JSON, CEF, logfmt)
+
+`mcp-jail` can output and export logs in three enterprise structured formats:
+
+```bash
+# Output as single-line JSON / JSONL
+mcp-jail logs --format json
+
+# Output as Common Event Format (CEF) for Splunk / ArcSight / Sentinel
+mcp-jail logs --format cef
+
+# Output as logfmt (key=value) for Loki / terminal analysis
+mcp-jail logs --format logfmt
+```
+
+### Format Examples
+
+#### 1. JSON
+```json
+{"id":42,"session_id":"sess-123","timestamp":"2026-10-21T00:15:00Z","direction":"host_to_server","rpc_id":"3","method":"tools/call","tool_name":"execute_sql","action":"blocked","rule_triggered":"DROP DATABASE blocked","latency_ms":12}
+```
+
+#### 2. CEF (Common Event Format)
+```text
+CEF:0|smford|mcp-jail|0.5.0|POLICY_VIOLATION|Tool execution blocked by security policy|7|act=blocked tool=execute_sql method=tools/call reason=DROP\ DATABASE\ blocked cs1=sess-123 cs1Label=SessionID cn1=12 cn1Label=LatencyMs cs2=3 cs2Label=RPCID rt=1792541700000
+```
+
+#### 3. logfmt
+```text
+ts=2026-10-21T00:15:00Z level=warn action=blocked session_id=sess-123 tool=execute_sql method=tools/call rule="DROP DATABASE blocked" latency_ms=12 rpc_id=3 direction=host_to_server
+```
+
+---
+
+## Continuous Log Export to SIEM
+
+In `.mcp-jail.yaml`, configure the `export` block to continuously append structured records to an external file or SIEM forwarder socket:
+
+```yaml
+# Continuous Audit Log Export & SIEM Ingestion
+export:
+  enabled: true
+  file: "/var/log/mcp-jail/audit.log"
+  format: "cef" # "json", "cef", or "logfmt"
 ```
 
 ---

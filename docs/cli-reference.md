@@ -98,6 +98,7 @@ mcp-jail logs [flags]
 
 | Flag | Short | Type | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
+| `--format` | | string | `table` | Output format: `table`, `json`, `cef`, or `logfmt` |
 | `--follow` | `-f` | bool | `false` | Stream and follow incoming events in real time |
 | `--session` | | string | `""` | Filter events to a specific session ID |
 | `--blocked-only` | | bool | `false` | Show only events blocked by security rules |
