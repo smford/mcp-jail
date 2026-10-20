@@ -40,19 +40,24 @@ mcp-jail --help
 
 ## 2. Initialize Policy Configuration
 
-Run `mcp-jail init` inside your project root to generate a sensible default `.mcp-jail.yaml`:
+Run `mcp-jail init` inside your project root to generate a `.mcp-jail.yaml` policy file. You can choose a tailored preset for your server workload (`coding`, `database`, `github`, `homeassistant`, `minimal`, or `default`):
 
 ```bash
-mcp-jail init
+# List available security presets
+mcp-jail init --list-presets
+
+# Initialize with a preset tailored to your tools
+mcp-jail init --preset coding
 ```
 
 Output:
 ```
-Created .mcp-jail.yaml with strict security boundaries:
-  - Allowed roots: Current workspace (.)
-  - Denied paths:  ~/.ssh, ~/.aws, ~/.kube, /etc, **/.env*
-  - Command guard: Blocked destructive commands (rm -rf, git push --force, etc.)
-  - Scrubber:      Auto-redaction of AWS keys, GitHub PATs, private keys
+Created .mcp-jail.yaml using preset [coding]:
+  - Allowed roots: Current project workspace (.)
+  - Denied paths: ~/.ssh, ~/.aws, ~/.gnupg, ~/.kube, ~/.netrc, /etc, **/.env*
+  - Command guard: Blocks 'rm -rf /', 'git push --force', 'npm publish --force', 'curl | sh'
+  - Args rules: Prevents pushing directly to main/master branches
+  - Scrubber: Strips API keys, cloud credentials, and private keys from prompts & outputs
 ```
 
 > [!NOTE]
@@ -60,7 +65,17 @@ Created .mcp-jail.yaml with strict security boundaries:
 
 ---
 
-## 3. Wrap Your First MCP Server
+## 3. Verify Environment Health
+
+Run `mcp-jail doctor` to check client configurations, verify reachability of servers, audit policy syntax, and check sandbox readiness:
+
+```bash
+mcp-jail doctor
+```
+
+---
+
+## 4. Wrap Your First MCP Server
 
 Prepend `mcp-jail wrap --` to your existing MCP server invocation:
 
@@ -81,7 +96,7 @@ mcp-jail wrap \
 
 ---
 
-## 4. Verify Policy Enforcement
+## 5. Verify Policy Enforcement
 
 When an AI coding agent attempts to access restricted paths (such as `~/.ssh/id_rsa` or `../.env`), `mcp-jail` intercepts the tool call and immediately returns a graceful error:
 
@@ -105,19 +120,23 @@ The AI agent reads this rationale and self-corrects without crashing or disconne
 
 ---
 
-## 5. Review the Audit Log
+## 6. Review Audit Logs & Replay Sessions
 
-In another terminal window, inspect the SQLite flight recorder:
+In another terminal window, inspect the SQLite flight recorder or stream events live:
 
 ```bash
-# View recent events
-mcp-jail logs
+# Stream audit logs live in real time
+mcp-jail logs -f
 
-# View only blocked violations
+# View recent blocked policy violations
 mcp-jail logs --blocked-only
 
 # View high-level session statistics
 mcp-jail stats
+
+# Deterministically replay recorded sessions for testing
+mcp-jail replay --list
+mcp-jail replay <session-id>
 ```
 
 ---

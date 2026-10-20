@@ -65,31 +65,39 @@ flowchart TD
 
 | Security Dimension | Enforcement Mechanism | Failure Response |
 | :--- | :--- | :--- |
-| **Tool Execution** | Regex Allowlist / Denylist | Graceful in-protocol `isError: true` JSON-RPC result |
+| **Tool Execution & Rules** | Regex Allowlist / Denylist + `args_rules` (regex & numeric ranges) | Graceful in-protocol `isError: true` JSON-RPC result |
 | **Filesystem Boundary** | Realpath & symlink resolution against workspace roots | Blocks path traversal (`../`) and sensitive globs (`~/.ssh`, `~/.aws`, `.env*`) |
 | **Command Guard** | Regex patterns for destructive commands (`rm -rf`, `git push --force`) | Refusal with actionable feedback |
 | **Rate & Token Limiter** | Sliding window calls/min, total calls, and token budget | Circuit breaker trips to stop runaway agent loops |
 | **Outbound Secrets** | Pattern regexes + Shannon entropy detector | Redacts credentials into `[REDACTED_BY_MCP_JAIL:<TYPE>]` |
-| **Audit Trail** | Pure-Go SQLite in WAL mode with async channel worker | Instant zero-latency recording of every interaction |
+| **Real-Time Alerts** | Native OS desktop popups (macOS / Linux) & webhooks (Slack/Discord) | Instant notification on policy blocks or approval denials |
+| **Deterministic Replay** | SQLite-backed stdio mock server (`mcp-jail replay`) | Replays exact responses without touching child servers or live APIs |
+| **Environment Doctor** | Pre-flight diagnostics (`mcp-jail doctor`) | Comprehensive verification of clients, servers, and sandbox readiness |
+| **Audit Trail** | Pure-Go SQLite in WAL mode with async channel worker | Instant zero-latency recording with live streaming (`logs -f`) |
 
 ---
 
 ## Quick Example
 
-Generate a strict policy and wrap any MCP server:
+Generate a security policy and protect any MCP server:
 
 ```bash
-# 1. Initialize policy configuration in current workspace
-mcp-jail init
+# 1. Run pre-flight environment checks
+mcp-jail doctor
 
-# 2. Wrap your target MCP server command
+# 2. Initialize a tailored policy preset (coding, database, github, homeassistant, minimal)
+mcp-jail init --preset coding
+
+# 3. Auto-discover or wrap your MCP server
+mcp-jail list
 mcp-jail wrap -- npx -y @modelcontextprotocol/server-filesystem .
 
-# 3. View live audit trail in another terminal
-mcp-jail logs --tail 20
+# 4. Stream audit logs live in another terminal window
+mcp-jail logs -f
 
-# 4. Inspect session metrics
-mcp-jail stats
+# 5. Deterministically replay sessions for offline testing
+mcp-jail replay --list
+mcp-jail replay <session-id>
 ```
 
 > [!TIP]

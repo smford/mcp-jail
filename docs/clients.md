@@ -164,3 +164,32 @@ mcp-jail wrap [jail-flags] -- <original-mcp-server-command> [args...]
 ```
 
 `mcp-jail` guarantees transparent stdio pass-through, preserving JSON-RPC 2.0 framing and exit codes.
+
+---
+
+## 6. Local Project Workspace Auto-Discovery
+
+`mcp-jail` automatically discovers MCP configurations living inside your current repository or project workspace:
+- `.cursor/mcp.json`
+- `.vscode/mcp.json`
+- `mcp.json`
+- `.mcp.json`
+
+### Inspecting Workspace Servers
+Whenever you run `mcp-jail list` inside a repository containing workspace MCP definitions, they are automatically displayed alongside global desktop clients under the `workspace` target:
+
+```bash
+mcp-jail list
+```
+
+### Wrapping Workspace Servers
+You can wrap all MCP servers defined in your project repository with a single command:
+
+```bash
+mcp-jail install workspace
+```
+
+To restore the original unwrapped configuration:
+```bash
+mcp-jail uninstall workspace
+```
