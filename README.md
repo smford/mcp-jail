@@ -115,9 +115,14 @@ mcp-jail list --json           # Structured JSON output for automation
 ```
 
 ### 3. Initialize Configuration
-Generate a strict default `.mcp-jail.yaml` in your project root:
+Generate a security policy `.mcp-jail.yaml` tailored to your MCP workload using presets (`coding`, `database`, `github`, `homeassistant`, `minimal`, or `default`):
 ```bash
-mcp-jail init
+# View available security presets
+mcp-jail init --list-presets
+
+# Initialize with a preset
+mcp-jail init --preset coding
+mcp-jail init --preset database
 ```
 
 ### 4. Wrap Any MCP Server
@@ -297,7 +302,9 @@ See the [Real-World Security Walkthrough](docs/examples-homeassistant.md) for de
 ## CLI Reference
 
 ### `mcp-jail init`
-Generates a default `.mcp-jail.yaml` in the current working directory.
+Generates a `.mcp-jail.yaml` policy file in the current working directory.
+- `-p, --preset <name>`: Preset policy template (`coding`, `database`, `github`, `homeassistant`, `minimal`, `default`).
+- `--list-presets`: List all available presets and their descriptions.
 - `-f, --force`: Overwrite existing configuration file.
 
 ### `mcp-jail wrap [flags] -- <command> [args...]`

@@ -35,7 +35,7 @@ Available Commands:
 
 ## `mcp-jail init`
 
-Generates a sensible default `.mcp-jail.yaml` policy file in the current working directory.
+Generates a `.mcp-jail.yaml` policy file in the current working directory, with optional security presets tailored to specific server types.
 
 ```bash
 mcp-jail init [flags]
@@ -45,7 +45,18 @@ mcp-jail init [flags]
 
 | Flag | Short | Type | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
+| `--preset` | `-p` | string | `default` | Security preset: `coding`, `database`, `github`, `homeassistant`, `minimal`, or `default` |
+| `--list-presets` | | bool | `false` | List all available security presets with their descriptions and rules |
 | `--force` | `-f` | bool | `false` | Overwrite existing `.mcp-jail.yaml` file if present |
+
+### Presets Overview
+
+- **`coding`**: Protects dev workspaces (Cursor, Claude Code, Antigravity, VS Code). Restricts branch pushes, blocks sensitive dotfiles (`.env`, `~/.ssh`, `~/.aws`, `~/.gnupg`), and stops dangerous shell commands (`rm -rf`, `curl | sh`).
+- **`database`**: Protects SQL/data MCP servers (PostgreSQL, MySQL, SQLite, Supabase, Snowflake, BigQuery). Blocks unconstrained `DROP`, `TRUNCATE`, and unqualified `DELETE`; enforces rate limits and output token budgets.
+- **`github`**: Protects Git and GitHub MCP servers. Blocks pushing to `main`/`master`, prevents repository deletion and dismissal of PR reviews, and redacts personal access tokens.
+- **`homeassistant`**: Protects smart home / IoT servers. Denies access to door locks, alarms, and sirens, and constrains thermostat temperatures.
+- **`minimal`**: Lightweight baseline policy with minimal restrictions, ideal for quick testing.
+- **`default`**: Standard balanced baseline policy.
 
 ---
 

@@ -407,9 +407,16 @@ alerts:
 // LoadConfig loads the configuration from a YAML file.
 // If path is empty, it looks for .mcp-jail.yaml in the current directory.
 // If the file does not exist and path was empty, DefaultConfig() is returned.
-func LoadConfig(path string) (*Config, error) {
+// ParseConfig parses raw YAML bytes into a Config struct initialized with defaults.
+func ParseConfig(data []byte) (*Config, error) {
 	cfg := DefaultConfig()
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+	return cfg, nil
+}
 
+func LoadConfig(path string) (*Config, error) {
 	if path == "" {
 		candidates := []string{
 			".mcp-jail.yaml",
@@ -425,7 +432,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	if path == "" {
 		// No config found, return default
-		return cfg, nil
+		return DefaultConfig(), nil
 	}
 
 	cleanPath := filepath.Clean(path)
@@ -434,9 +441,5 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file %s: %w", cleanPath, err)
 	}
 
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config file %s: %w", cleanPath, err)
-	}
-
-	return cfg, nil
+	return ParseConfig(data)
 }

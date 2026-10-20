@@ -359,7 +359,7 @@ func checkPolicy() []CheckItem {
 			Category: "Security Policy",
 			Name:     "Policy Configuration",
 			Status:   StatusPass,
-			Message:  fmt.Sprintf("valid policy (%d allowed roots, %d denied tools, %d arg rules)",
+			Message: fmt.Sprintf("valid policy (%d allowed roots, %d denied tools, %d arg rules)",
 				len(cfg.Filesystem.AllowedRoots), len(cfg.Tools.Denied), len(cfg.Tools.Rules)),
 		})
 	}
