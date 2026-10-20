@@ -34,7 +34,7 @@ flowchart LR
 
 When `mcp-jail` detects an action that violates your local security policy, it intercepts the request, blocks execution from reaching Home Assistant, records the incident in the SQLite flight recorder, and returns an informative in-protocol refusal with `isError: true`. This allows the AI agent to understand the constraint and self-correct without crashing the session.
 
-![MCP-Jail Policy Block Example](01-mcp-blocked-example.png)
+![MCP-Jail Policy Block Example](images/01-mcp-blocked-example.png)
 
 ---
 
