@@ -339,6 +339,33 @@ mcp-jail lint-policy [file] [flags]
 
 ---
 
+## `mcp-jail replay`
+
+Starts a mock MCP server that deterministically replays recorded JSON-RPC responses from a previous session stored in the SQLite flight recorder.
+
+Can be plugged directly into Claude Desktop, Cursor, Antigravity, or CI test suites to reproduce tool calls and errors without running actual child servers, consuming API tokens, or touching live environments.
+
+```bash
+# List available recorded sessions:
+mcp-jail replay --list
+
+# Replay a specific session over stdio:
+mcp-jail replay <session-id>
+
+# Replay with original latency timing simulated:
+mcp-jail replay <session-id> --timing
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `--list` | `-l` | bool | `false` | List available recorded sessions and exit |
+| `--timing` | `-t` | bool | `false` | Simulate original latency delays from recorded session |
+| `--db` | | string | `""` | Path to SQLite flight recorder database |
+
+---
+
 ## `mcp-jail version`
 
 Prints the compiled version number, build metadata, copyright, and license information.

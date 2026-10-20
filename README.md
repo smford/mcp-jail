@@ -331,6 +331,12 @@ Displays cumulative metrics, token estimates, and top tools invoked.
 - `--session <id>`: Filter stats for a specific session.
 - `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
 
+### `mcp-jail replay [session-id] [flags]`
+Starts a mock MCP server that deterministically replays recorded JSON-RPC responses from a previous session stored in the SQLite flight recorder.
+- `-l, --list`: List recorded sessions stored in the flight recorder.
+- `-t, --timing`: Simulate original latency delays from recorded session.
+- `--db <path>`: SQLite database path (default: `~/.mcp-jail/flight-recorder.db`).
+
 ### `mcp-jail diff [flags]`
 Displays a git-style unified diff of all file modifications and creations made during an agent session.
 - `--session <id>`: Filter diff by session ID (default: latest active session).

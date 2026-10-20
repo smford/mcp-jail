@@ -100,6 +100,7 @@ func init() {
 	rootCmd.AddCommand(wrapCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(replayCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(statsCmd)
 	rootCmd.AddCommand(serveCmd)
