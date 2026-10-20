@@ -146,11 +146,13 @@ type SandboxConfig struct {
 	ReadOnlyRoot   bool `yaml:"read_only_root"`
 }
 
-// AlertsConfig configures real-time webhook notifications for security events.
+// AlertsConfig configures real-time notifications for security events.
 type AlertsConfig struct {
-	Enabled    bool     `yaml:"enabled"`
-	WebhookURL string   `yaml:"webhook_url"`
-	Events     []string `yaml:"events"`
+	Enabled       bool     `yaml:"enabled"`
+	WebhookURL    string   `yaml:"webhook_url"`
+	WebhookFormat string   `yaml:"webhook_format"` // "generic", "slack", "discord"
+	Desktop       bool     `yaml:"desktop"`        // Trigger native desktop notification (macOS osascript / Linux notify-send)
+	Events        []string `yaml:"events"`
 }
 
 // DefaultConfig returns the default strict configuration.
@@ -392,10 +394,12 @@ sandbox:
   isolate_network: false
   read_only_root: false
 
-# Real-Time Security Alerts (Webhooks for Slack/Discord/SIEM)
+# Real-Time Security Alerts (Webhooks & Native Desktop Popups)
 alerts:
   enabled: false
   webhook_url: ""
+  webhook_format: "generic" # "generic", "slack", or "discord"
+  desktop: false           # Native macOS osascript / Linux notify-send alerts
   events:
     - "policy_violation"
     - "approval_denied"

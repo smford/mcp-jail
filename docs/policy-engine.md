@@ -160,3 +160,42 @@ mcp-jail wrap --dry-run -- <command>
 ```
 
 In dry-run mode, violations are logged to the SQLite flight recorder with `(dry-run)` appended to the rule name, while the tool call is permitted to proceed.
+
+---
+
+## 6. Real-Time Alerts (Desktop & Webhooks)
+
+Trigger instant alerts whenever a security policy violation or approval denial occurs:
+
+```yaml
+alerts:
+  enabled: true
+
+  # Native OS desktop popup (macOS Notification Center via osascript, Linux notify-send)
+  desktop: true
+
+  # Webhook alerting (Slack, Discord, or generic JSON for SIEM/logging)
+  webhook_url: "https://hooks.slack.com/services/T00/B00/XXXX"
+  webhook_format: "slack" # "slack", "discord", or "generic"
+
+  # Filter specific event types (leave empty to receive all alerts)
+  events:
+    - "policy_violation"
+    - "approval_denied"
+```
+
+### Supported Webhook Formats
+
+- **`slack`**: Formats messages with rich Markdown and emoji blocks (`🚨 *mcp-jail Security Alert*`).
+- **`discord`**: Formats messages compatible with Discord webhook payloads (`🚨 **mcp-jail Security Alert**`).
+- **`generic`**: Standard JSON envelope containing full structured event details:
+  ```json
+  {
+    "event_type": "policy_violation",
+    "timestamp": "2026-10-20T23:45:00Z",
+    "session_id": "sess-abc12345",
+    "tool": "execute_sql",
+    "reason": "DROP DATABASE statement blocked",
+    "details": {}
+  }
+  ```

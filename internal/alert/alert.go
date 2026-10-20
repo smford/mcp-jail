@@ -3,7 +3,10 @@ package alert
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +24,26 @@ type Event struct {
 	Details   map[string]interface{} `json:"details,omitempty"`
 }
 
-// Dispatcher sends security notifications asynchronously to configured webhooks.
+// desktopNotifyFunc defines the signature for delivering desktop popups (mockable in tests).
+type desktopNotifyFunc func(title, message string) error
+
+var notifyDesktop desktopNotifyFunc = defaultDesktopNotify
+
+func defaultDesktopNotify(title, message string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		script := fmt.Sprintf("display notification %q with title %q", message, title)
+		cmd := exec.Command("osascript", "-e", script)
+		return cmd.Run()
+	case "linux":
+		cmd := exec.Command("notify-send", title, message)
+		return cmd.Run()
+	default:
+		return nil
+	}
+}
+
+// Dispatcher sends security notifications asynchronously to configured webhooks and desktop environments.
 type Dispatcher struct {
 	mu         sync.RWMutex
 	cfg        config.AlertsConfig
@@ -50,7 +72,7 @@ func (d *Dispatcher) IsSubscribed(eventType string) bool {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	if !d.cfg.Enabled || d.cfg.WebhookURL == "" {
+	if !d.cfg.Enabled || (d.cfg.WebhookURL == "" && !d.cfg.Desktop) {
 		return false
 	}
 	if len(d.subscribed) == 0 {
@@ -59,7 +81,37 @@ func (d *Dispatcher) IsSubscribed(eventType string) bool {
 	return d.subscribed[strings.ToLower(strings.TrimSpace(eventType))]
 }
 
-// Dispatch sends the event asynchronously in a goroutine.
+// FormatWebhookPayload prepares the JSON payload according to the configured webhook format.
+func FormatWebhookPayload(format string, evt Event) ([]byte, error) {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "slack":
+		toolStr := evt.Tool
+		if toolStr == "" {
+			toolStr = "(n/a)"
+		}
+		text := fmt.Sprintf("🚨 *mcp-jail Security Alert*\n*Event*: `%s`\n*Tool*: `%s`\n*Reason*: %s", evt.Type, toolStr, evt.Reason)
+		payload := map[string]interface{}{
+			"text": text,
+		}
+		return json.Marshal(payload)
+
+	case "discord":
+		toolStr := evt.Tool
+		if toolStr == "" {
+			toolStr = "(n/a)"
+		}
+		content := fmt.Sprintf("🚨 **mcp-jail Security Alert**\n**Event**: `%s`\n**Tool**: `%s`\n**Reason**: %s", evt.Type, toolStr, evt.Reason)
+		payload := map[string]interface{}{
+			"content": content,
+		}
+		return json.Marshal(payload)
+
+	default: // "generic"
+		return json.Marshal(evt)
+	}
+}
+
+// Dispatch sends the event asynchronously via webhook and/or native desktop alert.
 func (d *Dispatcher) Dispatch(evt Event) {
 	if !d.IsSubscribed(evt.Type) {
 		return
@@ -69,22 +121,43 @@ func (d *Dispatcher) Dispatch(evt Event) {
 		evt.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	go func(payload Event, webhookURL string) {
-		data, err := json.Marshal(payload)
-		if err != nil {
-			return
-		}
+	d.mu.RLock()
+	webhookURL := d.cfg.WebhookURL
+	webhookFormat := d.cfg.WebhookFormat
+	desktop := d.cfg.Desktop
+	d.mu.RUnlock()
 
-		req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(data))
-		if err != nil {
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "mcp-jail/security-alerts")
+	// Dispatch desktop popup notification
+	if desktop {
+		go func(e Event) {
+			toolMsg := e.Tool
+			if toolMsg == "" {
+				toolMsg = e.Type
+			}
+			msg := fmt.Sprintf("Security alert on %s: %s", toolMsg, e.Reason)
+			_ = notifyDesktop("mcp-jail Alert", msg)
+		}(evt)
+	}
 
-		resp, err := d.client.Do(req)
-		if err == nil && resp != nil {
-			_ = resp.Body.Close()
-		}
-	}(evt, d.cfg.WebhookURL)
+	// Dispatch HTTP webhook
+	if webhookURL != "" {
+		go func(payload Event, url, format string) {
+			data, err := FormatWebhookPayload(format, payload)
+			if err != nil {
+				return
+			}
+
+			req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+			if err != nil {
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("User-Agent", "mcp-jail/security-alerts")
+
+			resp, err := d.client.Do(req)
+			if err == nil && resp != nil {
+				_ = resp.Body.Close()
+			}
+		}(evt, webhookURL, webhookFormat)
+	}
 }

@@ -68,6 +68,7 @@ AI coding agents are powerful because they can use tools to read files, run term
 - **Filesystem Boundary Guard**: Resolves relative paths (`../`), symlinks, and home shortcuts (`~`) against allowed workspace roots. Denies `~/.aws/**`, `~/.ssh/**`, `~/.kube/**`, `/etc/**`, and `**/.env*`.
 - **Command Argument Guard**: Regex filters preventing destructive shell commands (e.g. `rm -rf`, `curl | sh`, `git push --force`, `aws iam`, `terraform destroy`).
 - **Outbound Secret Scrubber**: Scans child server outputs before they reach the LLM context, masking credentials into `[REDACTED_BY_MCP_JAIL:<TYPE>]`.
+- **Real-Time Desktop & Webhook Alerts**: Native popup notifications (macOS Notification Center / Linux `notify-send`) and formatted webhooks for Slack, Discord, and SIEM on policy violations.
 - **Graceful Self-Correction**: When a policy violation occurs, `mcp-jail` returns a valid MCP `tools/call` response with `isError: true` containing actionable feedback. This allows the LLM to self-correct without crashing the client session.
 - **Strict Stdout Hygiene**: In `wrap` mode, `os.Stdout` is reserved exclusively for JSON-RPC 2.0 traffic. Internal proxy logs always route to `os.Stderr`.
 
