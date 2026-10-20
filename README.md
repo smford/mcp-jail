@@ -290,6 +290,8 @@ Manual configuration in your `mcp_config.json`:
 }
 ```
 
+See the [Real-World Security Walkthrough](docs/examples-homeassistant.md) for detailed sample calls, screenshot examples, and flight recorder logs.
+
 ---
 
 ## CLI Reference

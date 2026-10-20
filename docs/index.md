@@ -56,6 +56,7 @@ flowchart TD
 - [Secret Scrubber](secret-scrubber.md) — Outbound credential masking and Shannon entropy detection.
 - [Flight Recorder & Audit](flight-recorder.md) — SQLite schema, audit trails, and querying events.
 - [Client Integrations](clients.md) — Setup snippets for Claude Desktop, Claude Code, Cursor, and Antigravity.
+- [Real-World Example: Home Assistant](examples-homeassistant.md) — Live walkthrough with screenshots of policy blocks and flight recorder logs.
 - [CLI Reference](cli-reference.md) — Comprehensive reference for all subcommands and flags.
 
 ---

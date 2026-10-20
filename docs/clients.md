@@ -151,6 +151,8 @@ In your Antigravity MCP configuration file (`mcp_config.json`):
 ```
 This requires no background daemons or port allocations, and enforces full security policies, audit logging, and secret scrubbing on remote tool calls.
 
+See the [Home Assistant Security Walkthrough](examples-homeassistant.md) for detailed sample calls, screenshot examples, and flight recorder logs.
+
 ---
 
 ## 5. OpenCode / Generic CLI Subprocess
