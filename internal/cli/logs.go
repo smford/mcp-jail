@@ -2,9 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"text/tabwriter"
+	"time"
 
 	"github.com/smford/mcp-jail/internal/recorder"
 	"github.com/spf13/cobra"
@@ -15,6 +19,7 @@ var (
 	logsBlockedOnly bool
 	logsTail        int
 	logsDB          string
+	logsFollow      bool
 )
 
 var logsCmd = &cobra.Command{
@@ -39,7 +44,18 @@ var logsCmd = &cobra.Command{
 			return fmt.Errorf("failed to query events: %w", err)
 		}
 
-		if len(events) == 0 {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "TIMESTAMP\tDIR\tRPC ID\tTOOL/METHOD\tACTION\tLATENCY\tDETAILS")
+
+		var lastSeenID int64
+		for _, ev := range events {
+			if ev.ID > lastSeenID {
+				lastSeenID = ev.ID
+			}
+			printEvent(w, ev)
+		}
+
+		if len(events) == 0 && !logsFollow {
 			if logsSessionID != "" {
 				fmt.Printf("No events recorded for session %s\n", logsSessionID)
 			} else {
@@ -48,50 +64,79 @@ var logsCmd = &cobra.Command{
 			return nil
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "TIMESTAMP\tDIR\tRPC ID\tTOOL/METHOD\tACTION\tLATENCY\tDETAILS")
-
-		for _, ev := range events {
-			ts := ev.Timestamp.Format("15:04:05.000")
-			dir := "→"
-			if ev.Direction == recorder.DirectionServerToHost {
-				dir = "←"
-			}
-
-			actionStr := formatAction(ev.Action)
-			toolOrMethod := ev.ToolName
-			if toolOrMethod == "" {
-				toolOrMethod = ev.Method
-			}
-			if toolOrMethod == "" {
-				toolOrMethod = "-"
-			}
-
-			latencyStr := "-"
-			if ev.LatencyMs > 0 {
-				latencyStr = fmt.Sprintf("%dms", ev.LatencyMs)
-			}
-
-			details := ""
-			if ev.RuleTriggered != "" {
-				details = fmt.Sprintf("Rule: %s", ev.RuleTriggered)
-			} else if ev.Action == recorder.ActionRedacted {
-				details = "Secrets scrubbed from output"
-			} else if len(ev.PayloadJSON) > 0 {
-				// Compact preview
-				p := strings.ReplaceAll(ev.PayloadJSON, "\n", " ")
-				if len(p) > 60 {
-					p = p[:57] + "..."
-				}
-				details = p
-			}
-
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				ts, dir, ev.RPCID, toolOrMethod, actionStr, latencyStr, details)
+		if !logsFollow {
+			return w.Flush()
 		}
 
-		return w.Flush()
+		_ = w.Flush()
+
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-sigChan:
+				return nil
+			case <-ticker.C:
+				newEvents, err := rec.GetEvents(recorder.EventFilter{
+					SessionID:   logsSessionID,
+					BlockedOnly: logsBlockedOnly,
+					AfterID:     lastSeenID,
+				})
+				if err != nil {
+					continue
+				}
+				for _, ev := range newEvents {
+					if ev.ID > lastSeenID {
+						lastSeenID = ev.ID
+					}
+					printEvent(w, ev)
+					_ = w.Flush()
+				}
+			}
+		}
 	},
+}
+
+func printEvent(w io.Writer, ev *recorder.Event) {
+	ts := ev.Timestamp.Format("15:04:05.000")
+	dir := "→"
+	if ev.Direction == recorder.DirectionServerToHost {
+		dir = "←"
+	}
+
+	actionStr := formatAction(ev.Action)
+	toolOrMethod := ev.ToolName
+	if toolOrMethod == "" {
+		toolOrMethod = ev.Method
+	}
+	if toolOrMethod == "" {
+		toolOrMethod = "-"
+	}
+
+	latencyStr := "-"
+	if ev.LatencyMs > 0 {
+		latencyStr = fmt.Sprintf("%dms", ev.LatencyMs)
+	}
+
+	details := ""
+	if ev.RuleTriggered != "" {
+		details = fmt.Sprintf("Rule: %s", ev.RuleTriggered)
+	} else if ev.Action == recorder.ActionRedacted {
+		details = "Secrets scrubbed from output"
+	} else if len(ev.PayloadJSON) > 0 {
+		p := strings.ReplaceAll(ev.PayloadJSON, "\n", " ")
+		if len(p) > 60 {
+			p = p[:57] + "..."
+		}
+		details = p
+	}
+
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		ts, dir, ev.RPCID, toolOrMethod, actionStr, latencyStr, details)
 }
 
 func formatAction(action recorder.Action) string {
@@ -112,4 +157,5 @@ func init() {
 	logsCmd.Flags().BoolVar(&logsBlockedOnly, "blocked-only", false, "Show only blocked policy violations")
 	logsCmd.Flags().IntVar(&logsTail, "tail", 50, "Number of most recent events to display")
 	logsCmd.Flags().StringVar(&logsDB, "db", "~/.mcp-jail/flight-recorder.db", "Path to SQLite flight recorder database")
+	logsCmd.Flags().BoolVarP(&logsFollow, "follow", "f", false, "Stream and follow incoming events in real time")
 }

@@ -113,4 +113,20 @@ func TestRecorderConcurrentLogging(t *testing.T) {
 	if len(stats.TopTools) == 0 || stats.TopTools[0].ToolName != "read_file" {
 		t.Errorf("expected top tool read_file, got %+v", stats.TopTools)
 	}
+
+	// Test AfterID filter for streaming
+	if len(events) >= 10 {
+		midID := events[9].ID
+		afterEvents, err := rec2.GetEvents(EventFilter{
+			SessionID: sessionID,
+			AfterID:   midID,
+		})
+		if err != nil {
+			t.Fatalf("failed to get events after ID: %v", err)
+		}
+		expectedAfter := len(events) - 10
+		if len(afterEvents) != expectedAfter {
+			t.Errorf("expected %d events after ID %d, got %d", expectedAfter, midID, len(afterEvents))
+		}
+	}
 }

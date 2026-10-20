@@ -86,6 +86,7 @@ mcp-jail logs [flags]
 
 | Flag | Short | Type | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
+| `--follow` | `-f` | bool | `false` | Stream and follow incoming events in real time |
 | `--session` | | string | `""` | Filter events to a specific session ID |
 | `--blocked-only` | | bool | `false` | Show only events blocked by security rules |
 | `--tail` | | int | `50` | Number of most recent events to display |

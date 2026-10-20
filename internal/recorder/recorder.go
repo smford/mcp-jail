@@ -328,15 +328,14 @@ func (r *Recorder) GetEvents(filter EventFilter) ([]*Event, error) {
 		query += " AND action = ?"
 		args = append(args, string(ActionBlocked))
 	}
-	query += " ORDER BY id ASC"
-
-	if filter.Limit > 0 {
-		query += " LIMIT ?"
+	if filter.AfterID > 0 {
+		query += " AND id > ? ORDER BY id ASC"
+		args = append(args, filter.AfterID)
+	} else if filter.Limit > 0 {
+		query = fmt.Sprintf("SELECT * FROM (%s ORDER BY id DESC LIMIT ?) ORDER BY id ASC", query)
 		args = append(args, filter.Limit)
-		if filter.Offset > 0 {
-			query += " OFFSET ?"
-			args = append(args, filter.Offset)
-		}
+	} else {
+		query += " ORDER BY id ASC"
 	}
 
 	rows, err := r.db.Query(query, args...)

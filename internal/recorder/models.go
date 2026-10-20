@@ -55,6 +55,7 @@ type EventFilter struct {
 	BlockedOnly bool
 	Limit       int
 	Offset      int
+	AfterID     int64
 }
 
 // ToolCount holds aggregation counts for tools.
