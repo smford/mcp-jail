@@ -20,19 +20,19 @@ erDiagram
     SESSIONS ||--o{ EVENTS : contains
     SESSIONS {
         string id PK
-        timestamp started_at
-        timestamp ended_at
+        datetime started_at
+        datetime ended_at
         string command
         string cwd
         int total_calls
         int blocked_calls
         int redacted_secrets
-        bigint est_tokens
+        int est_tokens
     }
     EVENTS {
         int id PK
         string session_id FK
-        timestamp timestamp
+        datetime timestamp
         string direction
         string rpc_id
         string method
@@ -40,7 +40,7 @@ erDiagram
         string action
         string rule_triggered
         int latency_ms
-        text payload_json
+        string payload_json
     }
 ```
 
@@ -55,7 +55,8 @@ mcp-jail logs
 ```
 
 Output:
-```
+
+```text
 TIMESTAMP     DIR  RPC ID  TOOL/METHOD  ACTION    LATENCY  DETAILS
 14:22:01.120  →    2       read_file    ALLOWED   -        {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params":...
 14:22:01.124  ←    2       read_file    ALLOWED   4ms      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text"...
@@ -134,7 +135,8 @@ mcp-jail stats
 ```
 
 Output:
-```
+
+```text
 ====================================================
             MCP-JAIL FLIGHT RECORDER STATS
 ====================================================

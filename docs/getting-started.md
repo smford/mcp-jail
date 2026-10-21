@@ -51,7 +51,8 @@ mcp-jail init --preset coding
 ```
 
 Output:
-```
+
+```text
 Created .mcp-jail.yaml using preset [coding]:
   - Allowed roots: Current project workspace (.)
   - Denied paths: ~/.ssh, ~/.aws, ~/.gnupg, ~/.kube, ~/.netrc, /etc, **/.env*
