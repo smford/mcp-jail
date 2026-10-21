@@ -43,5 +43,6 @@ docs-serve:
 	python3 -m http.server 8000 --directory docs
 
 docs-update:
-	curl -sSL https://raw.githubusercontent.com/smford/md-web-renderer/main/index.html -o docs/index.html
+	gh release download --repo smford/md-web-renderer --pattern "index.html" --dir docs --clobber || \
+	curl -sSL https://github.com/smford/md-web-renderer/releases/latest/download/index.html -o docs/index.html
 	touch docs/.nojekyll

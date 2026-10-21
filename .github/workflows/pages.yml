@@ -77,11 +77,22 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
-      - name: Setup Documentation with md-web-renderer
-        uses: smford/md-web-renderer@29586695f62fb154bfd9543ce6db38946a6b614a # v1
+      - name: Pull latest release of md-web-renderer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Pulling down latest release of md-web-renderer..."
+          gh release download --repo smford/md-web-renderer --pattern "index.html" --dir docs --clobber || \
+          curl -sSL https://github.com/smford/md-web-renderer/releases/latest/download/index.html -o docs/index.html
+          touch docs/.nojekyll
+          if [ -f "docs/js/analytics.js" ] && ! grep -q "js/analytics.js" "docs/index.html"; then
+            sed -i.bak 's|</head>|  <!-- Google Analytics 4 (GA4) -->\n  <script async src="https://www.googletagmanager.com/gtag/js?id=mcp-jail"></script>\n  <script>\n    window.dataLayer = window.dataLayer || [];\n    function gtag(){dataLayer.push(arguments);}\n    gtag("js", new Date());\n    gtag("config", "mcp-jail", { send_page_view: false });\n  </script>\n  <script src="js/analytics.js" defer></script>\n</head>|' "docs/index.html" && rm -f "docs/index.html.bak"
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: 'docs'
-          fallback-readme: 'false'
 
       - name: Deploy to GitHub Pages
         id: deployment
